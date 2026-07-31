@@ -115,6 +115,9 @@ let libraryMode = "words";
 let librarySource = "personal";
 let speakingIndex = 0;
 let speakingRevealed = false;
+let speakingMode = "scene";
+let reflexIndex = 0;
+let reflexRevealed = false;
 let activeRecording = null;
 let recordingChunks = [];
 let playbackUrl = "";
@@ -177,7 +180,17 @@ function dailySpeakingItems() {
   return source.sort((a,b)=>((hash(a.id)+daySeed)%101)-((hash(b.id)+daySeed)%101)).slice(0,10);
 }
 
+function dailyReflexItems(){
+  const now=new Date();
+  const seed=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
+  const hash=id=>[...id].reduce((n,c)=>(n*33+c.charCodeAt(0))%1009,0);
+  const categories=["授受动词","て形连接","助词反射","固定搭配"];
+  const picked=categories.flatMap(category=>reflexDrills.filter(x=>x.category===category).sort((a,b)=>((hash(a.id)+seed)%97)-((hash(b.id)+seed)%97)).slice(0,category==="固定搭配"?4:2));
+  return picked.slice(0,10);
+}
+
 function renderSpeaking() {
+  if(speakingMode==="reflex") return renderReflex();
   state.speakingRatings = state.speakingRatings || {};
   const items=dailySpeakingItems();
   if(speakingIndex>=items.length) speakingIndex=0;
@@ -186,6 +199,7 @@ function renderSpeaking() {
   const rating=state.speakingRatings[p.id];
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">意思说清楚、没有硬伤、卡住后能继续，就算通过。</p></div><span class="daily-count">${completed}/10</span></div>
+    <div class="speaking-mode-tabs"><button class="active" onclick="setSpeakingMode('scene')">场景开口</button><button onclick="setSpeakingMode('reflex')">基础反射</button></div>
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
     <section class="card speaking-card">
       <div class="speaking-meta"><span>${esc(p.group)}</span><b>${speakingIndex+1} / ${items.length}</b></div>
@@ -207,6 +221,36 @@ function renderSpeaking() {
     </section>
     <div class="speaking-nav"><button class="secondary" onclick="moveSpeaking(-1)">上一题</button><button class="primary" onclick="moveSpeaking(1)">下一题</button></div>
   </main>`;
+}
+
+function renderReflex(){
+  state.reflexRatings=state.reflexRatings||{};
+  const items=dailyReflexItems();
+  if(reflexIndex>=items.length)reflexIndex=0;
+  const p=items[reflexIndex],rating=state.reflexRatings[p.id];
+  const completed=items.filter(x=>state.reflexRatings[x.id]).length;
+  document.getElementById("app").innerHTML=`<main class="page speaking-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">不背大长句，把基础结构练成不用思考的口腔反射。</p></div><span class="daily-count">${completed}/10</span></div>
+    <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('scene')">场景开口</button><button class="active" onclick="setSpeakingMode('reflex')">基础反射</button></div>
+    <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
+    <section class="card reflex-card">
+      <div class="speaking-meta"><span>${esc(p.category)}</span><b>${reflexIndex+1} / ${items.length}</b></div>
+      <span class="speak-instruction">看中文，尽量马上说出日语</span>
+      <h2>${esc(p.prompt)}</h2>
+      ${reflexRevealed?`<div class="answer-panel"><div class="answer-block primary-answer"><small>简单正确版</small><p>${esc(p.answer)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.answer)})'>▷ 听一遍</button></div><div class="reflex-note">${esc(p.note)}</div></div>`:`<button class="secondary full reveal-answer" onclick="revealReflex()">我说完了，查看答案</button>`}
+      ${reflexRevealed?`<div class="self-check"><span>这次需要想多久？</span><div><button class="${rating==="stuck"?"active":""}" onclick="rateReflex('stuck')">需要想很久</button><button class="${rating==="finished"?"active":""}" onclick="rateReflex('finished')">能说出来</button><button class="${rating==="instant"?"active":""}" onclick="rateReflex('instant')">脱口而出</button></div></div>`:""}
+    </section>
+    <div class="speaking-nav"><button class="secondary" onclick="moveReflex(-1)">上一题</button><button class="primary" onclick="moveReflex(1)">下一题</button></div>
+    <section class="card reflex-overview"><div><b>${reflexDrills.filter(x=>x.category==="授受动词").length}</b><span>授受动词</span></div><div><b>${reflexDrills.filter(x=>x.category==="て形连接").length}</b><span>て形连接</span></div><div><b>${reflexDrills.filter(x=>x.category==="助词反射").length}</b><span>助词</span></div><div><b>${reflexDrills.filter(x=>x.category==="固定搭配").length}</b><span>固定搭配</span></div></section>
+  </main>`;
+}
+function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;renderSpeaking()}
+function revealReflex(){reflexRevealed=true;renderReflex()}
+function moveReflex(step){reflexIndex=(reflexIndex+step+dailyReflexItems().length)%dailyReflexItems().length;reflexRevealed=false;renderReflex()}
+function rateReflex(rating){
+  const p=dailyReflexItems()[reflexIndex];
+  state.reflexRatings=state.reflexRatings||{};state.reflexRatings[p.id]=rating;persist();
+  setTimeout(()=>moveReflex(1),180);
 }
 
 function revealSpeaking(){speakingRevealed=true;renderSpeaking()}
