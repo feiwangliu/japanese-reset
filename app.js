@@ -112,6 +112,7 @@ let reviewRevealed = false;
 let reviewQueue = [];
 let phraseCategory = "全部";
 let libraryMode = "words";
+let librarySource = "personal";
 let speakingIndex = 0;
 let speakingRevealed = false;
 let activeRecording = null;
@@ -146,13 +147,13 @@ function todayText() {
 }
 function render() {
   renderNav();
-  const pages = { home: renderHome, speaking: renderSpeaking, phrases: renderPhrases, errors: renderErrors, library: renderLibrary, me: renderMe };
+  const pages = { home: renderHome, live: renderLive, speaking: renderSpeaking, phrases: renderPhrases, errors: renderErrors, library: renderLibrary, me: renderMe };
   pages[currentTab]();
   window.scrollTo({ top:0, behavior:"instant" });
 }
 function renderNav() {
   const tabs = [
-    ["home","🏠","首页"],["speaking","🎙","今日开口"],["phrases","💬","场景"],["errors","🪄","纠错"],["library","🌿","词句"],["me","☕","记录"]
+    ["home","🏠","首页"],["live","◉","Live陪练"],["speaking","🎙","今日开口"],["phrases","💬","场景"],["errors","🪄","纠错"],["library","🌿","词句"],["me","☕","记录"]
   ];
   document.getElementById("nav").innerHTML = tabs.map(([id, icon, label]) =>
     `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${icon}</span><span>${label}</span></button>`
@@ -186,7 +187,6 @@ function renderSpeaking() {
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">意思说清楚、没有硬伤、卡住后能继续，就算通过。</p></div><span class="daily-count">${completed}/10</span></div>
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
-    <section class="live-launch card" onclick="openLiveSetup()"><div><span>CHATGPT LIVE</span><h2>进入真实语音陪练</h2><p>选择时长和模式，让ChatGPT用自然日语与你对话并只纠硬伤。</p></div><button class="primary">设置并开始</button></section>
     <section class="card speaking-card">
       <div class="speaking-meta"><span>${esc(p.group)}</span><b>${speakingIndex+1} / ${items.length}</b></div>
       <span class="speak-instruction">先不要看答案，直接用日语说</span>
@@ -229,10 +229,8 @@ function openAllLifelines(){
 }
 function useLifelineFromModal(word){closeModal();showLifeline(word)}
 
-function openLiveSetup(){
-  document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal live-modal">
-    <div class="modal-handle"></div><div class="modal-head"><h2>ChatGPT Live陪练</h2><button class="close-btn" onclick="closeModal()">×</button></div>
-    <p class="modal-copy">配置今天的练习。复制任务后进入【上进吧】并启动Voice。</p>
+function liveSetupFields(){
+  return `<p class="page-subtitle">Japanese Reset负责安排与复盘，ChatGPT Live负责自然发音、追问和即时纠错。</p>
     <label class="field-label">训练模式</label>
     <div class="choice-grid mode-choice">
       <button class="active" data-value="场景训练" onclick="selectLiveChoice(this,'mode-choice')">场景训练<small>围绕真实生活完成任务</small></button>
@@ -248,10 +246,16 @@ function openLiveSetup(){
     <label class="field-label" for="live-goal">今天特别想练什么</label>
     <input id="live-goal" class="text-input" placeholder="可以不填，例如：孩子学校、最近的生活">
     <div id="live-message" class="message"></div>
-    <button class="primary full" onclick="copyLiveTask()">复制今日任务</button>
-    <button class="secondary full" style="margin-top:9px" onclick="openChatGPTProject()">打开ChatGPT，再进入【上进吧】</button>
-    <div class="end-session-box"><b>练习结束以后</b><p>复制结束指令发给ChatGPT，它会生成包含真实表达和卡点的日报JSON。</p><button class="mini-btn" onclick="copyLiveEndPrompt()">复制结束复盘指令</button><button class="mini-btn" onclick="openImport()">导入复盘JSON</button></div>
-  </section></div>`;
+    <div class="live-primary-actions"><button class="primary" onclick="copyLiveTask()">1. 复制今日任务</button><button class="secondary" onclick="openChatGPTProject()">2. 打开ChatGPT</button></div>
+    <section class="live-howto"><b>进入【上进吧】以后</b><p>粘贴任务，启动Voice，直接开始说。ChatGPT会等待你的停顿，只纠正影响理解的硬伤。</p></section>
+    <div class="end-session-box"><b>练习结束以后</b><p>复制结束指令发给ChatGPT，它会生成包含真实表达和卡点的日报JSON。</p><button class="mini-btn" onclick="copyLiveEndPrompt()">3. 复制结束复盘指令</button><button class="mini-btn" onclick="openImport()">4. 导入复盘JSON</button></div>`;
+}
+function renderLive(){
+  document.getElementById("app").innerHTML=`<main class="page live-page">
+    <div class="live-hero"><span>CHATGPT LIVE × JAPANESE RESET</span><h1>真实语音陪练</h1><p>不追求母语级表达。说清楚、接得下去、没有硬伤，就算通过。</p></div>
+    <section class="card live-config">${liveSetupFields()}</section>
+    <section class="card live-standard"><h2>本次陪练标准</h2><div><span>1</span><p><b>先让你说完</b>停顿3至5秒，不马上替你回答。</p></div><div><span>2</span><p><b>卡住只给一个提示</b>用续命连接词帮助你接下去。</p></div><div><span>3</span><p><b>只纠真正的硬伤</b>正确且能理解的表达直接通过。</p></div></section>
+  </main>`;
 }
 function selectLiveChoice(button,className){
   document.querySelectorAll(`.${className} button`).forEach(x=>x.classList.remove("active"));
@@ -365,17 +369,21 @@ function togglePhrase(type,id){
 }
 
 function renderLibrary(){
+  const personalItems=allItems(libraryMode);
+  const recommendedItems=libraryMode==="words"?recommendedWords:recommendedPatterns;
+  const items=librarySource==="personal"?personalItems:recommendedItems;
   document.getElementById("app").innerHTML=`<main class="page">
     <h1 class="page-title">我的词句</h1><p class="page-subtitle">这里保存你在真实练习里遇到的个人词汇和可复用句型。</p>
-    <div class="segmented"><button class="${libraryMode==="words"?"active":""}" onclick="setLibraryMode('words')">个人单词</button><button class="${libraryMode==="patterns"?"active":""}" onclick="setLibraryMode('patterns')">高频句型</button></div>
-    <div id="library-content"></div>
+    <div class="segmented source-tabs"><button class="${librarySource==="personal"?"active":""}" onclick="setLibrarySource('personal')">我的练习记录</button><button class="${librarySource==="recommended"?"active":""}" onclick="setLibrarySource('recommended')">推荐扩展词句</button></div>
+    <div class="segmented"><button class="${libraryMode==="words"?"active":""}" onclick="setLibraryMode('words')">单词</button><button class="${libraryMode==="patterns"?"active":""}" onclick="setLibraryMode('patterns')">句型</button></div>
+    <div class="library-count">共 ${items.length} 条</div><div id="library-content"></div>
   </main>`;
-  const items=allItems(libraryMode);
   document.getElementById("library-content").innerHTML=items.length
     ? items.map(libraryMode==="words"?wordCard:patternCard).join("")
     : emptyList(libraryMode==="words"?"这里暂时没有单词":"这里暂时没有句型");
 }
 function setLibraryMode(mode){libraryMode=mode;renderLibrary()}
+function setLibrarySource(source){librarySource=source;renderLibrary()}
 
 function renderHome() {
   const r = latest();
@@ -474,7 +482,7 @@ function renderWords() {
   </main>`;
 }
 function wordCard(w) {
-  return `<article class="item-card"><div class="item-top"><div><p class="jp-main">${esc(w.japanese)}</p><p class="meaning">${esc(w.meaning)}</p></div><span class="count-pill">出现 ${w.count} 次</span></div>
+  return `<article class="item-card"><div class="item-top"><div><p class="jp-main">${esc(w.japanese)}</p><p class="meaning">${esc(w.meaning)}</p></div><span class="count-pill">${w.count?`出现 ${w.count} 次`:esc(w.category||"推荐")}</span></div>
     <div class="item-note">${esc(w.example)}</div><div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(w.japanese)})'>▷ 听发音</button><button class="mini-btn ${state.savedWords.includes(w.id)?"saved":""}" onclick='toggleSaved("word",${JSON.stringify(w.id)})'>${state.savedWords.includes(w.id)?"已收藏":"收藏"}</button></div></article>`;
 }
 function filterBtn(id,label) { return `<button class="${listFilter===id?"active":""}" onclick="setFilter('${id}')">${label}</button>`; }
@@ -507,7 +515,7 @@ function renderPatterns() {
   </main>`;
 }
 function patternCard(p) {
-  return `<article class="item-card"><div class="item-top"><div><p class="jp-main">${esc(p.pattern)}</p><p class="meaning">${esc(p.meaning)}</p></div><span class="count-pill">出现 ${p.count} 次</span></div>
+  return `<article class="item-card"><div class="item-top"><div><p class="jp-main">${esc(p.pattern)}</p><p class="meaning">${esc(p.meaning)}</p></div><span class="count-pill">${p.count?`出现 ${p.count} 次`:esc(p.category||"推荐")}</span></div>
     <div class="pattern-example"><b>${esc(p.example)}</b><span>${esc(p.translation)}</span></div>
     <div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(p.example)})'>▷ 听例句</button><button class="mini-btn ${state.savedPatterns.includes(p.id)?"saved":""}" onclick='toggleSaved("pattern",${JSON.stringify(p.id)})'>${state.savedPatterns.includes(p.id)?"已收藏":"收藏"}</button></div></article>`;
 }
