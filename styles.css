@@ -221,6 +221,9 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .daily-count{flex:none;background:#8f87a7;color:white;border-radius:999px;padding:8px 12px;font-weight:800;font-size:12px}
 .daily-progress{height:8px;background:#ddd7e6;border-radius:99px;overflow:hidden;margin:-8px 0 17px}
 .daily-progress i{display:block;height:100%;background:linear-gradient(90deg,#87bac7,#9488b1);border-radius:inherit}
+.speaking-mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;background:#ded9d2;border-radius:15px;padding:4px;margin:0 0 20px}
+.speaking-mode-tabs button{border:0;background:transparent;border-radius:11px;padding:10px;color:var(--muted);font-size:11px;cursor:pointer}
+.speaking-mode-tabs button.active{background:var(--card);color:var(--ink);font-weight:800;box-shadow:0 3px 8px rgba(66,61,54,.07)}
 .speaking-card{padding:23px;background:linear-gradient(145deg,#fbf9f5,#f0ebf3)}
 .speaking-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
 .speaking-meta span{background:#e2edf0;color:#607b83;border-radius:999px;padding:6px 10px;font-size:10px}
@@ -252,6 +255,12 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .self-check button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 4px;font-size:10px;cursor:pointer}
 .self-check button.active,.self-check button:nth-child(2){background:#879a8e;color:white;border-color:#879a8e}
 .speaking-nav{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.reflex-card>h2{font-family:Georgia,"Songti SC",serif;font-size:22px;line-height:1.65;margin:0 0 24px}
+.reflex-note{margin-top:9px;padding:11px 13px;border-radius:12px;background:#ece7de;color:#70695e;font-size:10px;line-height:1.6}
+.reflex-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:15px;text-align:center}
+.reflex-overview div{padding:10px 2px;border-radius:12px;background:#eee9e0}
+.reflex-overview b{display:block;font-family:Georgia,serif;font-size:19px;color:#6f7f87}
+.reflex-overview span{display:block;color:var(--muted);font-size:8px;margin-top:3px}
 .lifeline-library{display:grid;gap:8px}
 .lifeline-library button{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:12px;text-align:left;cursor:pointer}
 .lifeline-library b{display:block;color:#756b87;font-size:13px;margin-bottom:3px}
