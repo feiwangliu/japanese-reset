@@ -82,6 +82,13 @@ let listFilter = "all";
 let reviewIndex = 0;
 let reviewRevealed = false;
 let reviewQueue = [];
+let phraseCategory = "全部";
+let libraryMode = "words";
+let speakingIndex = 0;
+let speakingRevealed = false;
+let activeRecording = null;
+let recordingChunks = [];
+let playbackUrl = "";
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -111,19 +118,144 @@ function todayText() {
 }
 function render() {
   renderNav();
-  const pages = { home: renderHome, words: renderWords, errors: renderErrors, patterns: renderPatterns, me: renderMe };
+  const pages = { home: renderHome, speaking: renderSpeaking, phrases: renderPhrases, errors: renderErrors, library: renderLibrary, me: renderMe };
   pages[currentTab]();
   window.scrollTo({ top:0, behavior:"instant" });
 }
 function renderNav() {
   const tabs = [
-    ["home","🏠","首页"],["words","🌿","单词"],["errors","🪄","纠错"],["patterns","🧩","句型"],["me","☕","我的"]
+    ["home","🏠","首页"],["speaking","🎙","今日开口"],["phrases","💬","场景"],["errors","🪄","纠错"],["library","🌿","词句"],["me","☕","记录"]
   ];
   document.getElementById("nav").innerHTML = tabs.map(([id, icon, label]) =>
     `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${icon}</span><span>${label}</span></button>`
   ).join("");
 }
 function go(tab) { currentTab = tab; listFilter = "all"; render(); }
+
+function dailySpeakingItems() {
+  const source = [...speakingPrompts];
+  const daySeed = Number(new Date().toISOString().slice(0,10).replaceAll("-",""));
+  return source.sort((a,b)=>((a.id.length*31+daySeed+Number(a.id.slice(-3)))%17)-((b.id.length*31+daySeed+Number(b.id.slice(-3)))%17)).slice(0,10);
+}
+
+function renderSpeaking() {
+  state.speakingRatings = state.speakingRatings || {};
+  const items=dailySpeakingItems();
+  if(speakingIndex>=items.length) speakingIndex=0;
+  const p=items[speakingIndex];
+  const completed=items.filter(x=>state.speakingRatings[x.id]).length;
+  const rating=state.speakingRatings[p.id];
+  document.getElementById("app").innerHTML=`<main class="page speaking-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">意思说清楚、没有硬伤、卡住后能继续，就算通过。</p></div><span class="daily-count">${completed}/10</span></div>
+    <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
+    <section class="card speaking-card">
+      <div class="speaking-meta"><span>${esc(p.group)}</span><b>${speakingIndex+1} / ${items.length}</b></div>
+      <span class="speak-instruction">先不要看答案，直接用日语说</span>
+      <h2>${esc(p.prompt)}</h2>
+      <div class="lifeline-title">卡住时，可以从这里接下去</div>
+      <div class="lifeline-row">${p.lifelines.map(x=>`<button onclick='showLifeline(${JSON.stringify(x)})'>${esc(x)}</button>`).join("")}<button onclick="openAllLifelines()">更多</button></div>
+      <div id="lifeline-hint" class="lifeline-hint"></div>
+      <div class="recorder">
+        <button id="record-btn" class="record-btn" onclick="toggleRecording()">● 开始录音</button>
+        <span id="record-status">建议说20至30秒，可以分成几个短句。</span>
+      </div>
+      <div id="playback-wrap">${playbackUrl?`<audio controls src="${playbackUrl}"></audio>`:""}</div>
+      ${speakingRevealed?`<div class="answer-panel">
+        <div class="answer-block primary-answer"><small>简单正确版｜做到这个程度就通过</small><p>${esc(p.easy)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.easy)})'>▷ 听一遍</button></div>
+        <details><summary>查看完整自然版，不要求背诵</summary><p>${esc(p.simple)}</p></details>
+      </div>`:`<button class="secondary full reveal-answer" onclick="revealSpeaking()">我说完了，查看简单正确版</button>`}
+      ${speakingRevealed?`<div class="self-check"><span>这次说得怎么样？</span><div><button class="${rating==="stuck"?"active":""}" onclick="rateSpeaking('stuck')">卡住了</button><button class="${rating==="finished"?"active":""}" onclick="rateSpeaking('finished')">说完了</button><button class="${rating==="instant"?"active":""}" onclick="rateSpeaking('instant')">脱口而出</button></div></div>`:""}
+    </section>
+    <div class="speaking-nav"><button class="secondary" onclick="moveSpeaking(-1)">上一题</button><button class="primary" onclick="moveSpeaking(1)">下一题</button></div>
+  </main>`;
+}
+
+function revealSpeaking(){speakingRevealed=true;renderSpeaking()}
+function moveSpeaking(step){
+  speakingIndex=(speakingIndex+step+dailySpeakingItems().length)%dailySpeakingItems().length;
+  speakingRevealed=false; stopRecordingIfNeeded(); renderSpeaking();
+}
+function rateSpeaking(rating){
+  const p=dailySpeakingItems()[speakingIndex];
+  state.speakingRatings=state.speakingRatings||{};
+  state.speakingRatings[p.id]=rating; persist();
+  setTimeout(()=>moveSpeaking(1),180);
+}
+function showLifeline(word){
+  const item=lifelineWords.find(x=>x.word===word);
+  document.getElementById("lifeline-hint").innerHTML=item?`<b>${esc(item.word)}</b> ${esc(item.hint)}<small>${esc(item.example)}</small>`:"";
+}
+function openAllLifelines(){
+  document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal"><div class="modal-handle"></div><div class="modal-head"><h2>口语续命连接词</h2><button class="close-btn" onclick="closeModal()">×</button></div><p class="modal-copy">不需要组成漂亮的长句。选一个接下去，把意思说完。</p><div class="lifeline-library">${lifelineWords.map(x=>`<button onclick='useLifelineFromModal(${JSON.stringify(x.word)})'><b>${esc(x.word)}</b><span>${esc(x.hint)}</span><small>${esc(x.example)}</small></button>`).join("")}</div></section></div>`;
+}
+function useLifelineFromModal(word){closeModal();showLifeline(word)}
+
+async function toggleRecording(){
+  if(activeRecording){activeRecording.stop();return}
+  if(!navigator.mediaDevices?.getUserMedia) return toast("当前浏览器不支持录音");
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recordingChunks=[];
+    const recorder=new MediaRecorder(stream);
+    activeRecording=recorder;
+    recorder.ondataavailable=e=>{if(e.data.size)recordingChunks.push(e.data)};
+    recorder.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      if(playbackUrl) URL.revokeObjectURL(playbackUrl);
+      playbackUrl=URL.createObjectURL(new Blob(recordingChunks,{type:recorder.mimeType||"audio/webm"}));
+      activeRecording=null;renderSpeaking();
+    };
+    recorder.start();
+    document.getElementById("record-btn").textContent="■ 停止录音";
+    document.getElementById("record-btn").classList.add("recording");
+    document.getElementById("record-status").textContent="正在录音。允许停顿，想办法继续说完。";
+  }catch{toast("没有取得麦克风权限")}
+}
+function stopRecordingIfNeeded(){
+  if(activeRecording){activeRecording.stop();activeRecording=null}
+  if(playbackUrl){URL.revokeObjectURL(playbackUrl);playbackUrl=""}
+}
+
+function renderPhrases() {
+  state.savedPhrases = state.savedPhrases || [];
+  state.masteredPhrases = state.masteredPhrases || [];
+  const categories = ["全部", ...new Set(phraseBank.map(x=>x.category))];
+  const items = phraseCategory === "全部" ? phraseBank : phraseBank.filter(x=>x.category===phraseCategory);
+  document.getElementById("app").innerHTML = `<main class="page phrase-page">
+    <h1 class="page-title">场景表达</h1><p class="page-subtitle">基础表达负责快速应对。先把事情办明白，再逐步补充原因和细节。</p>
+    <div class="phrase-summary"><div><strong>${phraseBank.length}</strong><span>常用表达</span></div><div><strong>${categories.length-1}</strong><span>生活场景</span></div><div><strong>${state.masteredPhrases.length}</strong><span>已经会说</span></div></div>
+    <div class="category-scroll">${categories.map(x=>`<button class="${phraseCategory===x?"active":""}" onclick='setPhraseCategory(${JSON.stringify(x)})'>${esc(x)}</button>`).join("")}</div>
+    <div class="phrase-list">${items.map(phraseCard).join("")}</div>
+  </main>`;
+}
+function phraseCard(p) {
+  const saved=state.savedPhrases.includes(p.id), mastered=state.masteredPhrases.includes(p.id);
+  return `<article class="item-card phrase-card ${mastered?"mastered":""}">
+    <span class="type-badge">${esc(p.category)}</span>
+    <p class="jp-main">${esc(p.japanese)}</p><p class="meaning">${esc(p.meaning)}</p>
+    <div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(p.japanese)})'>▷ 听发音</button><button class="mini-btn ${saved?"saved":""}" onclick='togglePhrase("saved",${JSON.stringify(p.id)})'>${saved?"已收藏":"收藏"}</button><button class="mini-btn ${mastered?"mastered-btn":""}" onclick='togglePhrase("mastered",${JSON.stringify(p.id)})'>${mastered?"✓ 会说了":"标记会说"}</button></div>
+  </article>`;
+}
+function setPhraseCategory(category){phraseCategory=category;renderPhrases()}
+function togglePhrase(type,id){
+  const key=type==="saved"?"savedPhrases":"masteredPhrases";
+  state[key]=state[key]||[];
+  state[key]=state[key].includes(id)?state[key].filter(x=>x!==id):[...state[key],id];
+  persist();renderPhrases();
+}
+
+function renderLibrary(){
+  document.getElementById("app").innerHTML=`<main class="page">
+    <h1 class="page-title">我的词句</h1><p class="page-subtitle">这里保存你在真实练习里遇到的个人词汇和可复用句型。</p>
+    <div class="segmented"><button class="${libraryMode==="words"?"active":""}" onclick="setLibraryMode('words')">个人单词</button><button class="${libraryMode==="patterns"?"active":""}" onclick="setLibraryMode('patterns')">高频句型</button></div>
+    <div id="library-content"></div>
+  </main>`;
+  const items=allItems(libraryMode);
+  document.getElementById("library-content").innerHTML=items.length
+    ? items.map(libraryMode==="words"?wordCard:patternCard).join("")
+    : emptyList(libraryMode==="words"?"这里暂时没有单词":"这里暂时没有句型");
+}
+function setLibraryMode(mode){libraryMode=mode;renderLibrary()}
 
 function renderHome() {
   const r = latest();
@@ -143,6 +275,10 @@ function renderHome() {
   document.getElementById("app").innerHTML = `<main class="page">
     <header class="topbar workspace-head"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>我的日语工作台</h1></div><div class="header-badges"><span>🔥 ${reports.length}</span><span>⭐ ${words.length + patterns.length}</span><div class="avatar">日</div></div></header>
     <div class="date-line"><span class="dot"></span>已整理 ${reports.length} 次练习 · 累计开口 ${totalMinutes} 分钟</div>
+    <section class="card daily-start" onclick="go('speaking')">
+      <div><span class="tiny-label">TODAY'S SPEAKING</span><h2>今天开口10次</h2><p>不追求完美。意思说清楚，卡住后能接下去，就算完成。</p></div>
+      <button class="primary">开始训练</button>
+    </section>
 
     <section class="card stage-card">
       <div class="section-head"><h2>🌱 我的成长阶段</h2><button class="text-btn" onclick="go('me')">查看成长记录 ›</button></div>
@@ -183,8 +319,8 @@ function renderHome() {
     </section>
     <section class="card"><div class="section-head"><h2>💬 本次对话主题</h2></div><div class="tag-row">${r.topics.map(x=>`<span class="tag"># ${esc(x)}</span>`).join("")}</div></section>
     <section class="card learning-card">
-      <div class="learning-row" onclick="go('words')"><div class="learning-icon">🌱</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
-      <div class="learning-row" onclick="go('patterns')"><div class="learning-icon">🧩</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="libraryMode='words';go('library')"><div class="learning-icon">🌱</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="libraryMode='patterns';go('library')"><div class="learning-icon">🧩</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
       <div class="learning-row" onclick="go('errors')"><div class="learning-icon">🪄</div><div><b>${errors.length} 项真实纠错</b><p>${errors.slice(0,3).map(x=>x.type).join(" · ")}</p></div><span class="arrow">›</span></div>
     </section>
     <div class="dashboard-columns">
