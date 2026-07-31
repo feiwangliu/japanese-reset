@@ -250,6 +250,26 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .lifeline-library b{display:block;color:#756b87;font-size:13px;margin-bottom:3px}
 .lifeline-library span{display:block;font-size:10px;color:var(--ink)}
 .lifeline-library small{display:block;font-family:Georgia,"Yu Mincho",serif;color:var(--muted);font-size:11px;margin-top:5px}
+.live-launch{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,#e1e9e6,#e7e1ec);cursor:pointer}
+.live-launch span{font-size:9px;letter-spacing:.12em;color:#7d7190;font-weight:850}
+.live-launch h2{font-size:18px;margin:6px 0 5px}
+.live-launch p{font-size:10px;line-height:1.55;color:var(--muted);margin:0}
+.live-launch .primary{flex:none;min-height:43px;padding:0 14px}
+.field-label{display:block;font-size:10px;font-weight:800;color:var(--muted);margin:17px 2px 8px}
+.choice-grid{display:grid;gap:7px}
+.mode-choice{grid-template-columns:repeat(3,1fr)}
+.duration-choice{grid-template-columns:repeat(3,1fr)}
+.choice-grid button{border:1px solid var(--line);background:var(--card);border-radius:13px;padding:11px 6px;font-weight:700;font-size:11px;cursor:pointer}
+.choice-grid button small{display:block;font-weight:400;font-size:8px;color:var(--muted);margin-top:4px;line-height:1.4}
+.choice-grid button.active{background:#817895;color:white;border-color:#817895}
+.choice-grid button.active small{color:#e7e2ed}
+.text-input{display:block;width:100%;height:45px;border:1px solid var(--line);border-radius:13px;background:var(--card);padding:0 12px;color:var(--ink);font-size:11px}
+.end-session-box{margin-top:18px;padding:15px;border-radius:15px;background:#e5ebe6}
+.end-session-box b{font-size:12px}
+.end-session-box p{font-size:10px;line-height:1.6;color:var(--muted);margin:5px 0 10px}
+.spoken-output>div:not(.section-head){padding:11px 0;border-top:1px solid var(--line)}
+.spoken-output b{display:block;font-family:Georgia,"Yu Mincho",serif;font-size:14px;line-height:1.6}
+.spoken-output span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
 @keyframes pulse{50%{transform:scale(1.04);box-shadow:0 0 0 6px rgba(158,85,79,.12)}}
 
 @media(min-width:800px){
@@ -276,4 +296,7 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
   .stage-step{min-height:94px}
   .stage-step small{display:none}
   .stage-copy{font-size:10px}
+  .live-launch{align-items:flex-start}
+  .live-launch .primary{font-size:10px}
+  .mode-choice button{font-size:10px;padding:10px 3px}
 }
