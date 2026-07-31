@@ -158,3 +158,63 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
   .dashboard-columns{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
   .dashboard-columns .card{margin-bottom:0}
 }
+
+/* 2026 workspace layout */
+.workspace-head{gap:16px}
+.workspace-head .hello h1{font-family:inherit;font-size:27px;font-weight:780}
+.header-badges{display:flex;align-items:center;gap:8px}
+.header-badges>span{background:rgba(249,247,242,.82);border:1px solid rgba(255,255,255,.8);border-radius:999px;padding:9px 11px;font-size:11px;color:var(--muted);box-shadow:0 4px 12px rgba(74,69,61,.04)}
+.stage-card{background:linear-gradient(135deg,rgba(249,247,242,.96),rgba(235,231,241,.94))}
+.stage-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stage-step{min-height:105px;border-radius:18px;background:rgba(242,238,246,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 6px;color:#928a9a}
+.stage-step span{font-size:25px;margin-bottom:7px;filter:saturate(.65)}
+.stage-step b{font-size:13px}
+.stage-step small{font-size:10px;margin-top:4px;opacity:.8}
+.stage-step.done{background:#e4ece7;color:#64796c}
+.stage-step.active{background:linear-gradient(145deg,#9dc6d7,#aaa3d3);color:white;box-shadow:0 10px 20px rgba(120,124,166,.15);transform:translateY(-2px)}
+.stage-progress,.plan-progress{height:7px;background:#e5dfeb;border-radius:99px;overflow:hidden;margin:14px 0 8px}
+.stage-progress i,.plan-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8fbfcf,#a99dcc)}
+.stage-copy{margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+.workbench-grid{display:grid;grid-template-columns:1fr;gap:0}
+.soft-label{font-size:10px;color:#778c96;background:#e3eff2;border-radius:999px;padding:6px 9px}
+.focus-card{background:linear-gradient(145deg,#f9f7f2,#eef3f4)}
+.focus-tags{display:flex;flex-wrap:wrap;gap:8px}
+.focus-tags span{border-radius:999px;background:#dfeff2;color:#617c85;padding:8px 11px;font-size:11px;border:1px solid rgba(255,255,255,.7)}
+.focus-tags span:nth-child(2){background:#e7e1ef;color:#746b84}
+.focus-tags span:nth-child(3){background:#ece6da;color:#7c6d55}
+.focus-tags span:nth-child(4){background:#e5ece5;color:#667868}
+.today-card .section-head strong{color:#83bccc;font-size:13px}
+.today-card .plan-progress{margin-top:4px}
+.plan-row{width:100%;border:0;border-top:1px solid rgba(216,212,204,.75);background:transparent;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:center;text-align:left;padding:12px 2px;cursor:pointer}
+.plan-row span{width:25px;height:25px;border:2px solid #b3a9cf;border-radius:50%;display:grid;place-items:center;color:white;font-size:12px}
+.plan-row b{font-size:12px;line-height:1.5;font-weight:600}
+.plan-row.checked{color:#969991}
+.plan-row.checked span{background:#9aaeb0;border-color:#9aaeb0}
+.plan-row.checked b{text-decoration:line-through}
+.compact-quote blockquote{margin-top:17px;margin-bottom:4px;font-size:19px}
+
+@media(min-width:800px){
+  body{padding:0;background:#f0edf4}
+  body:before{right:3%;top:5%;width:340px;height:340px}
+  #app{width:min(960px,calc(100% - 210px));margin:0 auto 0 190px}
+  .page{padding:28px 32px 60px}
+  .bottom-nav{left:0;top:0;bottom:auto;transform:none;width:166px;height:100svh;padding:104px 14px 24px;background:rgba(245,241,248,.94);border:0;border-right:1px solid rgba(201,194,211,.5);display:flex;flex-direction:column;gap:7px;box-shadow:10px 0 34px rgba(87,76,104,.035)}
+  .bottom-nav:before{content:"Japanese\\A Reset";white-space:pre;position:absolute;left:24px;top:27px;font-family:Georgia,"Yu Mincho",serif;font-size:18px;line-height:1.15;color:#746b84}
+  .nav-btn{height:58px;flex:none;border-radius:16px;display:grid;grid-template-columns:36px 1fr;gap:7px;text-align:left;justify-items:start;padding:0 14px;font-size:11px}
+  .nav-btn.active{background:linear-gradient(135deg,#8ec8dc,#aaa2d3);color:white;box-shadow:0 8px 16px rgba(112,118,164,.13)}
+  .nav-icon{font-size:19px}
+  .nav-btn.active .nav-icon{transform:none}
+  .floating-import{right:30px;bottom:28px}
+  .workbench-grid{grid-template-columns:.9fr 1.1fr;gap:15px}
+  .workbench-grid .card{height:100%}
+  .modal-backdrop{align-items:center}
+  .modal{width:min(620px,calc(100% - 40px));border-radius:28px;padding-bottom:24px}
+}
+
+@media(max-width:520px){
+  .header-badges>span{display:none}
+  .workspace-head .hello h1{font-size:24px}
+  .stage-step{min-height:94px}
+  .stage-step small{display:none}
+  .stage-copy{font-size:10px}
+}
