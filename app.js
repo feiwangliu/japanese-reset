@@ -136,10 +136,43 @@ function renderHome() {
     return;
   }
   const words = allItems("words"), patterns = allItems("patterns"), errors = allItems("errors");
+  const totalMinutes = reports.reduce((n,item)=>n+Number(item.duration||0),0);
+  const completedPlans = (state.planChecks || []).filter(Boolean).length;
+  const stage = reports.length < 5 ? "重新开口" : reports.length < 15 ? "建立语感" : "自然表达";
+  const stageProgress = Math.min(100, reports.length < 5 ? reports.length * 20 : reports.length < 15 ? (reports.length-5)*10 : 100);
   document.getElementById("app").innerHTML = `<main class="page">
-    <header class="topbar"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>こんばんは。</h1></div><div class="avatar">日</div></header>
-    <div class="date-line"><span class="dot"></span>已导入 ${reports.length} 次日语学习记录</div>
-    <section class="card quote"><span class="label">TODAY'S LINE · 今日のひとこと</span><blockquote>少しずつ、口から戻す。</blockquote><p>一点一点，把日语重新叫回来。</p></section>
+    <header class="topbar workspace-head"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>我的日语工作台</h1></div><div class="header-badges"><span>🔥 ${reports.length}</span><span>⭐ ${words.length + patterns.length}</span><div class="avatar">日</div></div></header>
+    <div class="date-line"><span class="dot"></span>已整理 ${reports.length} 次练习 · 累计开口 ${totalMinutes} 分钟</div>
+
+    <section class="card stage-card">
+      <div class="section-head"><h2>🌱 我的成长阶段</h2><button class="text-btn" onclick="go('me')">查看成长记录 ›</button></div>
+      <div class="stage-grid">
+        <div class="stage-step done"><span>🌰</span><b>唤醒日语</b><small>找回熟悉的声音</small></div>
+        <div class="stage-step active"><span>🌱</span><b>${stage}</b><small>当前阶段</small></div>
+        <div class="stage-step"><span>🌿</span><b>自在交流</b><small>让表达更自然</small></div>
+      </div>
+      <div class="stage-progress"><i style="width:${stageProgress}%"></i></div>
+      <p class="stage-copy">现在不追求一次说得完美，而是把想说的话稳定地说出来。</p>
+    </section>
+
+    <div class="workbench-grid">
+      <section class="card focus-card">
+        <div class="section-head"><h2>📌 本次重点</h2><span class="soft-label">${formatDate(r.date)}</span></div>
+        <div class="focus-tags">
+          <span>💬 ${esc(r.topics[0] || "日常表达")}</span>
+          <span>🌿 ${r.words.length} 个新词</span>
+          <span>🧩 ${r.patterns.length} 个句型</span>
+          <span>🪄 ${r.errors.length} 项纠错</span>
+        </div>
+      </section>
+      <section class="card today-card">
+        <div class="section-head"><h2>📝 今日计划</h2><strong>${completedPlans}/${Math.min(3,r.nextSteps.length)}</strong></div>
+        <div class="plan-progress"><i style="width:${Math.round(completedPlans/Math.max(1,Math.min(3,r.nextSteps.length))*100)}%"></i></div>
+        ${r.nextSteps.slice(0,3).map((x,i)=>`<button class="plan-row ${(state.planChecks||[])[i]?"checked":""}" onclick="togglePlan(${i})"><span>${(state.planChecks||[])[i]?"✓":""}</span><b>${esc(x)}</b></button>`).join("")}
+      </section>
+    </div>
+
+    <section class="card quote compact-quote"><span class="label">TODAY'S LINE · 今日のひとこと</span><blockquote>少しずつ、口から戻す。</blockquote><p>一点一点，把日语重新叫回来。</p></section>
     <section class="card">
       <div class="section-head"><h2>📊 最近一次学习概览</h2><button class="text-btn" onclick="go('me')">成长记录 ›</button></div>
       <div class="overview-grid">
@@ -163,6 +196,13 @@ function renderHome() {
 }
 function metric(name,value) {
   return `<div class="metric"><div class="metric-head"><span>${name}</span><b>${value}</b></div><div class="track"><i style="width:${value}%"></i></div></div>`;
+}
+
+function togglePlan(index) {
+  state.planChecks = state.planChecks || [];
+  state.planChecks[index] = !state.planChecks[index];
+  persist();
+  renderHome();
 }
 
 function renderWords() {
