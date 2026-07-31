@@ -250,8 +250,8 @@ function speak(text) {
 function openImport() {
   document.getElementById("modal-root").innerHTML = `<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal">
     <div class="modal-handle"></div><div class="modal-head"><h2>导入学习日报</h2><button class="close-btn" onclick="closeModal()">×</button></div>
-    <p class="modal-copy">把 ChatGPT 在每次 Live 练习后生成的 JSON 日报完整粘贴到这里。数据只保存在你的设备中。</p>
-    <textarea id="report-input" placeholder='粘贴以 { "date": ... } 开头的日报'></textarea>
+    <p class="modal-copy">可以粘贴一份 JSON 日报，也可以粘贴由多份日报组成的历史批量包。数据只保存在你的设备中。</p>
+    <textarea id="report-input" placeholder='粘贴以 { "date": ... } 或 [ { "date": ... } ] 开头的内容'></textarea>
     <div id="import-message" class="message"></div>
     <div class="modal-actions"><button class="secondary" onclick="openPrompt()">查看模板</button><button class="primary" onclick="importReport()">导入并整理</button></div>
   </section></div>`;
@@ -273,11 +273,16 @@ function importReport() {
   const message = document.getElementById("import-message");
   try {
     const text = input.value.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
-    const report = JSON.parse(text);
-    validateReport(report);
-    reports = [normalizeReport(report), ...reports];
+    const parsed = JSON.parse(text);
+    const incoming = Array.isArray(parsed) ? parsed : [parsed];
+    if (!incoming.length) throw new Error("历史包中没有学习日报");
+    incoming.forEach(validateReport);
+    const existingIds = new Set(reports.map(r=>r.id).filter(Boolean));
+    const normalized = incoming.map(normalizeReport).filter(r=>!existingIds.has(r.id));
+    if (!normalized.length) throw new Error("这些练习已经导入过了");
+    reports = [...normalized, ...reports];
     reports.sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id));
-    persist(); closeModal(); currentTab="home"; render(); toast("学习日报已导入");
+    persist(); closeModal(); currentTab="home"; render(); toast(`已导入 ${normalized.length} 份学习记录`);
   } catch (error) { message.textContent = `无法导入：${error.message}`; }
 }
 function validateReport(r) {
