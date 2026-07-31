@@ -230,7 +230,6 @@ function openAllLifelines(){
 function useLifelineFromModal(word){closeModal();showLifeline(word)}
 
 function openLiveSetup(){
-  const savedUrl=state.chatgptProjectUrl||"https://chatgpt.com/";
   document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal live-modal">
     <div class="modal-handle"></div><div class="modal-head"><h2>ChatGPT Live陪练</h2><button class="close-btn" onclick="closeModal()">×</button></div>
     <p class="modal-copy">配置今天的练习。复制任务后进入【上进吧】并启动Voice。</p>
@@ -248,11 +247,9 @@ function openLiveSetup(){
     </div>
     <label class="field-label" for="live-goal">今天特别想练什么</label>
     <input id="live-goal" class="text-input" placeholder="可以不填，例如：孩子学校、最近的生活">
-    <label class="field-label" for="project-url">【上进吧】项目链接</label>
-    <input id="project-url" class="text-input" value="${esc(savedUrl)}" placeholder="粘贴项目网址，保存一次即可">
     <div id="live-message" class="message"></div>
     <button class="primary full" onclick="copyLiveTask()">复制今日任务</button>
-    <button class="secondary full" style="margin-top:9px" onclick="openChatGPTProject()">打开ChatGPT</button>
+    <button class="secondary full" style="margin-top:9px" onclick="openChatGPTProject()">打开ChatGPT，再进入【上进吧】</button>
     <div class="end-session-box"><b>练习结束以后</b><p>复制结束指令发给ChatGPT，它会生成包含真实表达和卡点的日报JSON。</p><button class="mini-btn" onclick="copyLiveEndPrompt()">复制结束复盘指令</button><button class="mini-btn" onclick="openImport()">导入复盘JSON</button></div>
   </section></div>`;
 }
@@ -264,8 +261,7 @@ function getLiveConfig(){
   return {
     mode:document.querySelector(".mode-choice button.active")?.dataset.value||"场景训练",
     duration:document.querySelector(".duration-choice button.active")?.dataset.value||"10",
-    goal:document.getElementById("live-goal")?.value.trim()||"",
-    url:document.getElementById("project-url")?.value.trim()||"https://chatgpt.com/"
+    goal:document.getElementById("live-goal")?.value.trim()||""
   };
 }
 function buildLiveTask(config){
@@ -303,14 +299,11 @@ ${weak.length?`最近仍然卡住的内容：\n${weak.map((x,i)=>`${i+1}. ${x.pr
 }
 async function copyLiveTask(){
   const config=getLiveConfig();
-  state.chatgptProjectUrl=config.url;persist();
   try{await navigator.clipboard.writeText(buildLiveTask(config));document.getElementById("live-message").textContent="今日陪练任务已复制";}
   catch{document.getElementById("live-message").textContent="复制失败，请检查浏览器权限";}
 }
 function openChatGPTProject(){
-  const config=getLiveConfig();state.chatgptProjectUrl=config.url;persist();
-  const url=/^https:\/\/chatgpt\.com\//.test(config.url)?config.url:"https://chatgpt.com/";
-  window.open(url,"_blank","noopener");
+  window.open("https://chatgpt.com/","_blank","noopener");
 }
 async function copyLiveEndPrompt(){
   try{await navigator.clipboard.writeText(liveEndPrompt);toast("结束复盘指令已复制")}
