@@ -1,6 +1,6 @@
 :root {
-  --bg:#eee9e2;
-  --card:#f9f7f2;
+  --bg:#f1ece3;
+  --card:#faf7f0;
   --cream:#f3eee4;
   --sage:#9ba99b;
   --sage-dark:#63766a;
@@ -20,9 +20,16 @@
   --line:#d8d4cc;
   --shadow:0 10px 30px rgba(74,69,61,.07);
   --radius:24px;
+  --washi:#f4efe6;
+  --indigo:#667782;
+  --matcha:#859386;
+  --sakura:#b99591;
+  --hanko:#a9675f;
+  --gold:#b6a176;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",Arial,sans-serif}
+html,body{margin:0;min-height:100%;background-color:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",Arial,sans-serif}
+body{background-image:radial-gradient(circle at 20% 10%,rgba(255,255,255,.7),transparent 28%),linear-gradient(90deg,rgba(100,119,130,.025) 1px,transparent 1px),linear-gradient(rgba(100,119,130,.025) 1px,transparent 1px);background-size:auto,22px 22px,22px 22px}
 body:before,body:after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(2px);opacity:.45;pointer-events:none}
 body:before{width:230px;height:230px;right:-105px;top:80px;background:#d7ced7}
 body:after{width:260px;height:260px;left:-150px;bottom:100px;background:#d4ddd5}
@@ -34,11 +41,11 @@ body{padding-bottom:88px}
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
 .hello small,.section-title small{display:block;color:var(--muted);font-size:11px;letter-spacing:.04em;margin-bottom:7px}
 .hello h1{font-family:Georgia,"Yu Mincho",serif;font-size:30px;font-weight:500;margin:0;letter-spacing:-.02em}
-.avatar{width:52px;height:52px;border-radius:18px;background:linear-gradient(145deg,#d9e0d8,#c5d0c7);display:grid;place-items:center;font-family:Georgia,serif;font-size:22px;border:1px solid rgba(255,255,255,.65);box-shadow:0 8px 20px rgba(81,100,87,.12);transform:rotate(3deg)}
+.avatar{width:52px;height:52px;border-radius:16px;background:linear-gradient(145deg,#b77970,#9f615b);color:#fff8ee;display:grid;place-items:center;font-family:"Yu Mincho",Georgia,serif;font-size:22px;border:3px double rgba(255,248,238,.8);box-shadow:0 8px 20px rgba(126,71,66,.14);transform:rotate(3deg)}
 .date-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-bottom:18px}
 .dot{width:7px;height:7px;border-radius:50%;background:#37b36b}
-.card{background:rgba(249,247,242,.93);border:1px solid rgba(255,255,255,.72);outline:1px solid rgba(200,195,185,.28);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:15px}
-.quote{padding:25px;position:relative;overflow:hidden;background:linear-gradient(135deg,#f5f1e9 0%,#ebe6e9 100%)}
+.card{background:rgba(250,247,240,.94);border:1px solid rgba(255,255,255,.78);outline:1px solid rgba(181,168,147,.25);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:15px}
+.quote{padding:25px;position:relative;overflow:hidden;background-color:#f6f0e7;background-image:repeating-radial-gradient(circle at 0 100%,transparent 0 16px,rgba(102,119,130,.055) 17px 18px,transparent 19px 31px)}
 .quote:after{content:"📖  🍵";position:absolute;right:18px;top:15px;font-size:21px;letter-spacing:1px;filter:saturate(.55);opacity:.72;transform:rotate(3deg)}
 .quote .label,.tiny-label{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--green);text-transform:uppercase}
 .quote blockquote{font-family:Georgia,"Yu Mincho",serif;font-size:21px;line-height:1.62;margin:24px 62px 9px 0}
@@ -164,14 +171,14 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .workspace-head .hello h1{font-family:inherit;font-size:27px;font-weight:780}
 .header-badges{display:flex;align-items:center;gap:8px}
 .header-badges>span{background:rgba(249,247,242,.82);border:1px solid rgba(255,255,255,.8);border-radius:999px;padding:9px 11px;font-size:11px;color:var(--muted);box-shadow:0 4px 12px rgba(74,69,61,.04)}
-.stage-card{background:linear-gradient(135deg,rgba(249,247,242,.96),rgba(235,231,241,.94))}
+.stage-card{background-color:rgba(249,246,239,.96);background-image:linear-gradient(30deg,rgba(102,119,130,.035) 12%,transparent 12.5%,transparent 87%,rgba(102,119,130,.035) 87.5%),linear-gradient(150deg,rgba(102,119,130,.035) 12%,transparent 12.5%,transparent 87%,rgba(102,119,130,.035) 87.5%);background-size:34px 58px}
 .stage-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stage-step{min-height:105px;border-radius:18px;background:rgba(242,238,246,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 6px;color:#928a9a}
 .stage-step span{font-size:25px;margin-bottom:7px;filter:saturate(.65)}
 .stage-step b{font-size:13px}
 .stage-step small{font-size:10px;margin-top:4px;opacity:.8}
 .stage-step.done{background:#e4ece7;color:#64796c}
-.stage-step.active{background:linear-gradient(145deg,#9dc6d7,#aaa3d3);color:white;box-shadow:0 10px 20px rgba(120,124,166,.15);transform:translateY(-2px)}
+.stage-step.active{background:linear-gradient(145deg,#748993,#8a8394);color:white;box-shadow:0 10px 20px rgba(91,105,119,.16);transform:translateY(-2px)}
 .stage-progress,.plan-progress{height:7px;background:#e5dfeb;border-radius:99px;overflow:hidden;margin:14px 0 8px}
 .stage-progress i,.plan-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#8fbfcf,#a99dcc)}
 .stage-copy{margin:0;color:var(--muted);font-size:11px;line-height:1.6}
@@ -204,7 +211,7 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .phrase-card .jp-main{font-size:18px;margin-top:2px}
 .phrase-card.mastered{opacity:.66;background:#edf0eb}
 .mastered-btn{background:#81968a!important;color:white;border-color:#81968a!important}
-.daily-start{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,#7f91a0,#8f87a7);color:white;cursor:pointer}
+.daily-start{display:flex;align-items:center;justify-content:space-between;gap:18px;background-color:#6d7f88;background-image:repeating-linear-gradient(60deg,rgba(255,255,255,.04) 0 1px,transparent 1px 12px),repeating-linear-gradient(-60deg,rgba(255,255,255,.035) 0 1px,transparent 1px 12px);color:white;cursor:pointer}
 .daily-start h2{margin:7px 0 5px;font-size:22px}
 .daily-start p{margin:0;color:#eef0f2;font-size:11px;line-height:1.6}
 .daily-start .tiny-label{color:#e3e7ea}
@@ -270,8 +277,8 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .spoken-output>div:not(.section-head){padding:11px 0;border-top:1px solid var(--line)}
 .spoken-output b{display:block;font-family:Georgia,"Yu Mincho",serif;font-size:14px;line-height:1.6}
 .spoken-output span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
-.live-hero{border-radius:26px;padding:25px;margin-bottom:15px;background:linear-gradient(135deg,#707f8d,#8d829d);color:white;position:relative;overflow:hidden}
-.live-hero:after{content:"話";position:absolute;right:20px;top:4px;font-family:Georgia,"Yu Mincho",serif;font-size:90px;color:rgba(255,255,255,.08)}
+.live-hero{border-radius:26px;padding:25px;margin-bottom:15px;background-color:#657783;background-image:radial-gradient(circle at 100% 150%,transparent 0 23px,rgba(255,255,255,.07) 24px 25px,transparent 26px 47px),radial-gradient(circle at 0 150%,transparent 0 23px,rgba(255,255,255,.07) 24px 25px,transparent 26px 47px);background-size:50px 25px;color:white;position:relative;overflow:hidden}
+.live-hero:after{content:"話";position:absolute;right:20px;top:12px;width:74px;height:74px;border:2px solid rgba(255,244,230,.15);display:grid;place-items:center;font-family:Georgia,"Yu Mincho",serif;font-size:48px;color:rgba(255,244,230,.13);transform:rotate(4deg)}
 .live-hero span{font-size:9px;letter-spacing:.13em;color:#e6e4eb}
 .live-hero h1{font-size:28px;margin:9px 0 7px}
 .live-hero p{font-size:11px;line-height:1.65;color:#ecebf0;margin:0;max-width:75%}
@@ -291,14 +298,14 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 @keyframes pulse{50%{transform:scale(1.04);box-shadow:0 0 0 6px rgba(158,85,79,.12)}}
 
 @media(min-width:800px){
-  body{padding:0;background:#f0edf4}
+  body{padding:0;background-color:#f1ece3}
   body:before{right:3%;top:5%;width:340px;height:340px}
   #app{width:min(960px,calc(100% - 210px));margin:0 auto 0 190px}
   .page{padding:28px 32px 60px}
-  .bottom-nav{left:0;top:0;bottom:auto;transform:none;width:166px;height:100svh;padding:104px 14px 24px;background:rgba(245,241,248,.94);border:0;border-right:1px solid rgba(201,194,211,.5);display:flex;flex-direction:column;gap:7px;box-shadow:10px 0 34px rgba(87,76,104,.035)}
-  .bottom-nav:before{content:"Japanese\\A Reset";white-space:pre;position:absolute;left:24px;top:27px;font-family:Georgia,"Yu Mincho",serif;font-size:18px;line-height:1.15;color:#746b84}
+  .bottom-nav{left:0;top:0;bottom:auto;transform:none;width:166px;height:100svh;padding:104px 14px 24px;background-color:rgba(239,235,225,.97);background-image:repeating-linear-gradient(30deg,rgba(91,112,120,.035) 0 1px,transparent 1px 18px),repeating-linear-gradient(-30deg,rgba(91,112,120,.035) 0 1px,transparent 1px 18px);border:0;border-right:1px solid rgba(177,163,141,.45);display:flex;flex-direction:column;gap:7px;box-shadow:10px 0 34px rgba(87,76,104,.035)}
+  .bottom-nav:before{content:"日本語\\A RESET";white-space:pre;position:absolute;left:24px;top:27px;font-family:Georgia,"Yu Mincho",serif;font-size:19px;line-height:1.15;color:#64747d;letter-spacing:.08em}
   .nav-btn{height:58px;flex:none;border-radius:16px;display:grid;grid-template-columns:36px 1fr;gap:7px;text-align:left;justify-items:start;padding:0 14px;font-size:11px}
-  .nav-btn.active{background:linear-gradient(135deg,#8ec8dc,#aaa2d3);color:white;box-shadow:0 8px 16px rgba(112,118,164,.13)}
+  .nav-btn.active{background-color:#71838b;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 1px,transparent 1px 9px);color:white;box-shadow:0 8px 16px rgba(82,102,111,.15)}
   .nav-icon{font-size:19px}
   .nav-btn.active .nav-icon{transform:none}
   .floating-import{right:30px;bottom:28px}
