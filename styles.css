@@ -955,3 +955,27 @@ body{
   .stage-step small{display:none}
   .live-hero{padding:22px}
 }
+
+/* Small nature doodles */
+.daily-start:before,.stage-card:before,.focus-card:before,.today-card:before,.live-hero:after{
+  display:block;content:"";position:absolute;z-index:1;pointer-events:none;
+  width:34px;height:34px;left:auto;top:12px;right:16px;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  opacity:.78;transform:none;
+}
+.daily-start:before{background-image:url("assets/sprig.svg");right:54px;top:12px;width:38px;height:38px}
+.stage-card:before{background-image:url("assets/bird.svg");width:37px;height:37px;right:18px;top:11px}
+.focus-card:before{background-image:url("assets/notes.svg");width:29px;height:29px;right:15px;top:13px;opacity:.64}
+.today-card:before{background-image:url("assets/cat.svg");width:31px;height:31px;right:14px;top:12px;opacity:.68}
+.live-hero:after{background-image:url("assets/bird.svg");width:38px;height:38px;right:16px;top:14px;opacity:.72}
+.daily-start:after{right:18px;top:22px}
+.stage-card:after{display:none}
+.page-title:before{
+  content:"";position:absolute;left:auto;right:-35px;top:2px;width:27px;height:27px;
+  background:url("assets/sprig.svg") center/contain no-repeat;opacity:.48;transform:rotate(8deg);
+}
+@media(max-width:520px){
+  .daily-start:before{right:48px;width:33px;height:33px}
+  .stage-card:before,.focus-card:before,.today-card:before{width:27px;height:27px;right:12px}
+  .section-head{padding-right:24px}
+}
