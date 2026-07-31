@@ -156,7 +156,7 @@ function render() {
 }
 function renderNav() {
   const tabs = [
-    ["home","🏠","首页"],["live","◉","Live陪练"],["speaking","🎙","今日开口"],["phrases","💬","场景"],["errors","🪄","纠错"],["library","🌿","词句"],["me","☕","记录"]
+    ["home","⌂","首页"],["live","◉","Live陪练"],["speaking","◌","今日开口"],["phrases","▤","场景"],["errors","✓","纠错"],["library","Aa","词句"],["me","◷","记录"]
   ];
   document.getElementById("nav").innerHTML = tabs.map(([id, icon, label]) =>
     `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${icon}</span><span>${label}</span></button>`
