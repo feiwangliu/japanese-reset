@@ -75,6 +75,34 @@ const reportPrompt = `请根据我们刚才的日语口语练习，生成一份�
 4. 如果我的说法在日常口语中可以接受，不要为了书面标准强行纠正。
 5. corrected 优先给日本人日常会说的版本。`;
 
+const liveEndPrompt = `今天的口语训练结束。请根据刚才真实发生的对话，生成一份可导入 Japanese Reset 的学习日报。
+
+只输出合法 JSON，不要使用 Markdown 代码块，不要添加解释。使用 Japanese Reset 标准日报字段，并额外加入：
+"spokenSentences": [
+  {
+    "japanese": "我今天实际成功说出来的日语",
+    "meaning": "中文意思"
+  }
+],
+"stuckItems": [
+  {
+    "prompt": "当时想表达的中文意思或场景",
+    "original": "我当时卡住、错误或不自然的实际表达",
+    "corrected": "简单、正确、容易再次说出的版本",
+    "note": "只说明真正影响理解的硬伤"
+  }
+],
+"sessionMode": "场景训练/自由聊天/历史纠错",
+"duration": 实际练习分钟数
+
+要求：
+1. 只记录我真实说过的内容，不要虚构句子或错误。
+2. 如果我的说法正确且能理解，不要因为还有更地道的版本而判错。
+3. corrected 优先给简单、正确、容易脱口而出的版本，不追求母语级表达。
+4. spokenSentences 记录我真正独立说出来的句子。
+5. stuckItems 只记录明显卡住或存在硬伤、值得下次重练的内容。
+6. 其余字段继续包含 date、score、metrics、topics、words、patterns、errors、reflection、nextSteps。`;
+
 let reports = load(STORAGE_KEY, []);
 let state = load(STATE_KEY, { savedWords: [], savedPatterns: [], masteredWords: [], masteredErrors: [] });
 let currentTab = "home";
@@ -133,9 +161,19 @@ function renderNav() {
 function go(tab) { currentTab = tab; listFilter = "all"; render(); }
 
 function dailySpeakingItems() {
-  const source = [...speakingPrompts];
-  const daySeed = Number(new Date().toISOString().slice(0,10).replaceAll("-",""));
-  return source.sort((a,b)=>((a.id.length*31+daySeed+Number(a.id.slice(-3)))%17)-((b.id.length*31+daySeed+Number(b.id.slice(-3)))%17)).slice(0,10);
+  const imported = reports.flatMap((r,ri)=>(r.stuckItems||[]).map((x,xi)=>({
+    id:`imported-${r.date}-${ri}-${xi}`,
+    group:"历史卡点",
+    prompt:x.prompt || x.meaning || "把上次卡住的内容重新说一次。",
+    simple:x.corrected || "",
+    easy:x.corrected || "",
+    lifelines:["～て……","で……","～んですが……"]
+  })));
+  const source = [...imported.slice(0,4), ...speakingPrompts];
+  const now=new Date();
+  const daySeed=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
+  const hash=id=>[...id].reduce((n,c)=>(n*31+c.charCodeAt(0))%997,0);
+  return source.sort((a,b)=>((hash(a.id)+daySeed)%101)-((hash(b.id)+daySeed)%101)).slice(0,10);
 }
 
 function renderSpeaking() {
@@ -148,6 +186,7 @@ function renderSpeaking() {
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">意思说清楚、没有硬伤、卡住后能继续，就算通过。</p></div><span class="daily-count">${completed}/10</span></div>
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
+    <section class="live-launch card" onclick="openLiveSetup()"><div><span>CHATGPT LIVE</span><h2>进入真实语音陪练</h2><p>选择时长和模式，让ChatGPT用自然日语与你对话并只纠硬伤。</p></div><button class="primary">设置并开始</button></section>
     <section class="card speaking-card">
       <div class="speaking-meta"><span>${esc(p.group)}</span><b>${speakingIndex+1} / ${items.length}</b></div>
       <span class="speak-instruction">先不要看答案，直接用日语说</span>
@@ -189,6 +228,94 @@ function openAllLifelines(){
   document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal"><div class="modal-handle"></div><div class="modal-head"><h2>口语续命连接词</h2><button class="close-btn" onclick="closeModal()">×</button></div><p class="modal-copy">不需要组成漂亮的长句。选一个接下去，把意思说完。</p><div class="lifeline-library">${lifelineWords.map(x=>`<button onclick='useLifelineFromModal(${JSON.stringify(x.word)})'><b>${esc(x.word)}</b><span>${esc(x.hint)}</span><small>${esc(x.example)}</small></button>`).join("")}</div></section></div>`;
 }
 function useLifelineFromModal(word){closeModal();showLifeline(word)}
+
+function openLiveSetup(){
+  const savedUrl=state.chatgptProjectUrl||"https://chatgpt.com/";
+  document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal live-modal">
+    <div class="modal-handle"></div><div class="modal-head"><h2>ChatGPT Live陪练</h2><button class="close-btn" onclick="closeModal()">×</button></div>
+    <p class="modal-copy">配置今天的练习。复制任务后进入【上进吧】并启动Voice。</p>
+    <label class="field-label">训练模式</label>
+    <div class="choice-grid mode-choice">
+      <button class="active" data-value="场景训练" onclick="selectLiveChoice(this,'mode-choice')">场景训练<small>围绕真实生活完成任务</small></button>
+      <button data-value="自由聊天" onclick="selectLiveChoice(this,'mode-choice')">自由聊天<small>围绕近况自然追问</small></button>
+      <button data-value="历史纠错" onclick="selectLiveChoice(this,'mode-choice')">历史纠错<small>重说以前卡住的内容</small></button>
+    </div>
+    <label class="field-label">练习时长</label>
+    <div class="choice-grid duration-choice">
+      <button data-value="5" onclick="selectLiveChoice(this,'duration-choice')">5分钟</button>
+      <button class="active" data-value="10" onclick="selectLiveChoice(this,'duration-choice')">10分钟</button>
+      <button data-value="20" onclick="selectLiveChoice(this,'duration-choice')">20分钟</button>
+    </div>
+    <label class="field-label" for="live-goal">今天特别想练什么</label>
+    <input id="live-goal" class="text-input" placeholder="可以不填，例如：孩子学校、最近的生活">
+    <label class="field-label" for="project-url">【上进吧】项目链接</label>
+    <input id="project-url" class="text-input" value="${esc(savedUrl)}" placeholder="粘贴项目网址，保存一次即可">
+    <div id="live-message" class="message"></div>
+    <button class="primary full" onclick="copyLiveTask()">复制今日任务</button>
+    <button class="secondary full" style="margin-top:9px" onclick="openChatGPTProject()">打开ChatGPT</button>
+    <div class="end-session-box"><b>练习结束以后</b><p>复制结束指令发给ChatGPT，它会生成包含真实表达和卡点的日报JSON。</p><button class="mini-btn" onclick="copyLiveEndPrompt()">复制结束复盘指令</button><button class="mini-btn" onclick="openImport()">导入复盘JSON</button></div>
+  </section></div>`;
+}
+function selectLiveChoice(button,className){
+  document.querySelectorAll(`.${className} button`).forEach(x=>x.classList.remove("active"));
+  button.classList.add("active");
+}
+function getLiveConfig(){
+  return {
+    mode:document.querySelector(".mode-choice button.active")?.dataset.value||"场景训练",
+    duration:document.querySelector(".duration-choice button.active")?.dataset.value||"10",
+    goal:document.getElementById("live-goal")?.value.trim()||"",
+    url:document.getElementById("project-url")?.value.trim()||"https://chatgpt.com/"
+  };
+}
+function buildLiveTask(config){
+  const daily=dailySpeakingItems().slice(0,config.duration==="5"?4:config.duration==="20"?10:7);
+  const weak=reports.flatMap(r=>r.stuckItems||[]).slice(0,5);
+  const modeNotes={
+    "场景训练":"使用下面的生活场景逐步与我对话。不要让我翻译标准答案，要像真实交流一样追问。",
+    "自由聊天":"从我的近况开始自然聊天，根据我的回答继续追问，不要把对话变成考试。",
+    "历史纠错":"优先让我重新表达过去卡住或说错的内容，但不要先展示答案。"
+  };
+  return `开始今天的 Japanese Reset 日语口语训练。
+
+训练模式：${config.mode}
+训练时长：约${config.duration}分钟
+今天的目标：${config.goal||"正确、顺利地把意思说出来"}
+
+你的教学标准：
+1. 主要用日语和我交流，难度控制在N3以内。
+2. 我的目标不是母语级自然，而是正确、顺利、能让人听懂。
+3. 我停顿时先等3至5秒，不要马上替我回答。
+4. 如果我卡住，只给一个关键词或续命连接词，例如「で」「でも」「～て」「～んですが」「結局」。
+5. 接受我把一个意思拆成几个短句，不要求完整漂亮的长句。
+6. 不要打断每个小错误。等我把意思说完，只纠正影响理解的硬伤。
+7. 纠错时先肯定我已经表达清楚的部分，再给一个简单正确版，让我立即重新说一次。
+8. 不要一次讲很多语法，不要连续给多个更地道版本。
+9. 每次只问一个问题，听完我的回答再继续。
+10. ${modeNotes[config.mode]}
+
+可使用的今日场景：
+${daily.map((x,i)=>`${i+1}. ${x.prompt}`).join("\n")}
+
+${weak.length?`最近仍然卡住的内容：\n${weak.map((x,i)=>`${i+1}. ${x.prompt}｜简单正确版：${x.corrected}`).join("\n")}`:""}
+
+现在直接用日语开始，不要复述这些规则，也不要先解释课程安排。`;
+}
+async function copyLiveTask(){
+  const config=getLiveConfig();
+  state.chatgptProjectUrl=config.url;persist();
+  try{await navigator.clipboard.writeText(buildLiveTask(config));document.getElementById("live-message").textContent="今日陪练任务已复制";}
+  catch{document.getElementById("live-message").textContent="复制失败，请检查浏览器权限";}
+}
+function openChatGPTProject(){
+  const config=getLiveConfig();state.chatgptProjectUrl=config.url;persist();
+  const url=/^https:\/\/chatgpt\.com\//.test(config.url)?config.url:"https://chatgpt.com/";
+  window.open(url,"_blank","noopener");
+}
+async function copyLiveEndPrompt(){
+  try{await navigator.clipboard.writeText(liveEndPrompt);toast("结束复盘指令已复制")}
+  catch{toast("复制失败，请检查浏览器权限")}
+}
 
 async function toggleRecording(){
   if(activeRecording){activeRecording.stop();return}
@@ -309,6 +436,7 @@ function renderHome() {
     </div>
 
     <section class="card quote compact-quote"><span class="label">TODAY'S LINE · 今日のひとこと</span><blockquote>少しずつ、口から戻す。</blockquote><p>一点一点，把日语重新叫回来。</p></section>
+    ${(r.spokenSentences||[]).length?`<section class="card spoken-output"><div class="section-head"><h2>本次真正说出来的句子</h2><span class="soft-label">${r.spokenSentences.length}句</span></div>${r.spokenSentences.slice(0,4).map(x=>`<div><b>${esc(x.japanese)}</b><span>${esc(x.meaning||"")}</span></div>`).join("")}</section>`:""}
     <section class="card">
       <div class="section-head"><h2>📊 最近一次学习概览</h2><button class="text-btn" onclick="go('me')">成长记录 ›</button></div>
       <div class="overview-grid">
@@ -406,7 +534,7 @@ function renderMe() {
 }
 function historyRow(r) {
   const d = new Date(`${r.date}T12:00:00`);
-  return `<div class="history-row"><div class="history-date"><span>${d.getMonth()+1}月</span><b>${d.getDate()}</b></div><div class="history-body"><b>${r.topics.join(" · ")}</b><p>${r.duration} 分钟 · ${r.words.length} 个单词 · ${r.errors.length} 项纠错 · 评分 ${r.score}</p></div></div>`;
+  return `<div class="history-row"><div class="history-date"><span>${d.getMonth()+1}月</span><b>${d.getDate()}</b></div><div class="history-body"><b>${r.topics.join(" · ")}</b><p>${r.duration} 分钟 · ${(r.spokenSentences||[]).length} 句真实输出 · ${(r.stuckItems||[]).length} 项待重练 · 评分 ${r.score}</p></div></div>`;
 }
 function emptyList(text) { return `<section class="card empty"><div class="empty-mark">日</div><p>${text}</p></section>`; }
 
@@ -467,6 +595,8 @@ function validateReport(r) {
   ["fluency","grammar","vocabulary","naturalness"].forEach(k=>{ if (r.metrics[k]===undefined) throw new Error(`metrics 缺少 ${k}`); });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) throw new Error("date 必须是 YYYY-MM-DD");
   if (![r.topics,r.words,r.patterns,r.errors,r.nextSteps].every(Array.isArray)) throw new Error("列表字段格式不正确");
+  if (r.spokenSentences!==undefined&&!Array.isArray(r.spokenSentences)) throw new Error("spokenSentences 格式不正确");
+  if (r.stuckItems!==undefined&&!Array.isArray(r.stuckItems)) throw new Error("stuckItems 格式不正确");
 }
 function normalizeReport(r) {
   const score = n => Math.max(0,Math.min(100,Number(n)||0));
