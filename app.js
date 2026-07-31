@@ -117,7 +117,7 @@ function render() {
 }
 function renderNav() {
   const tabs = [
-    ["home","⌂","首页"],["words","▤","单词"],["errors","✓","纠错"],["patterns","句","句型"],["me","○","我的"]
+    ["home","🏠","首页"],["words","🌿","单词"],["errors","🪄","纠错"],["patterns","🧩","句型"],["me","☕","我的"]
   ];
   document.getElementById("nav").innerHTML = tabs.map(([id, icon, label]) =>
     `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${icon}</span><span>${label}</span></button>`
@@ -129,34 +129,34 @@ function renderHome() {
   const r = latest();
   if (!r) {
     document.getElementById("app").innerHTML = `<main class="page">
-      <header class="topbar"><div class="hello"><small>${todayText()}</small><h1>こんばんは。</h1></div><div class="avatar">日</div></header>
-      <section class="card quote"><span class="label">TODAY'S LINE</span><blockquote>話せなかったのではなく、まだ口から出てこなかっただけ。</blockquote><p>不是不会，只是这次还没有从嘴里出来。</p></section>
+      <header class="topbar"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>こんばんは。</h1></div><div class="avatar">日</div></header>
+      <section class="card quote"><span class="label">TODAY'S LINE · 今日のひとこと</span><blockquote>話せなかったのではなく、まだ口から出てこなかっただけ。</blockquote><p>不是不会，只是这次还没有从嘴里出来。</p></section>
       <section class="card empty"><div class="empty-mark">話</div><h2>第一份学习记录，从这里开始</h2><p>完成一次 ChatGPT 日语口语练习后，让它按固定模板生成日报，再粘贴导入。单词、句型和真实犯过的错误会自动沉淀下来。</p><button class="primary full" onclick="openImport()">导入第一次练习</button><button class="secondary full" style="margin-top:9px" onclick="loadDemo()">先看看演示数据</button></section>
     </main>`;
     return;
   }
   const words = allItems("words"), patterns = allItems("patterns"), errors = allItems("errors");
   document.getElementById("app").innerHTML = `<main class="page">
-    <header class="topbar"><div class="hello"><small>${todayText()}</small><h1>こんばんは。</h1></div><div class="avatar">日</div></header>
+    <header class="topbar"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>こんばんは。</h1></div><div class="avatar">日</div></header>
     <div class="date-line"><span class="dot"></span>已导入 ${reports.length} 次日语学习记录</div>
-    <section class="card quote"><span class="label">TODAY'S LINE</span><blockquote>少しずつ、口から戻す。</blockquote><p>一点一点，把日语重新叫回来。</p></section>
+    <section class="card quote"><span class="label">TODAY'S LINE · 今日のひとこと</span><blockquote>少しずつ、口から戻す。</blockquote><p>一点一点，把日语重新叫回来。</p></section>
     <section class="card">
-      <div class="section-head"><h2>最近一次学习概览</h2><button class="text-btn" onclick="go('me')">成长记录 ›</button></div>
+      <div class="section-head"><h2>📊 最近一次学习概览</h2><button class="text-btn" onclick="go('me')">成长记录 ›</button></div>
       <div class="overview-grid">
         <div class="score-ring" style="--score:${r.score}%"><div><strong>${r.score}</strong><span>综合评分</span></div></div>
         <div class="score-items">${metric("流利度",r.metrics.fluency)}${metric("语法",r.metrics.grammar)}${metric("词汇",r.metrics.vocabulary)}${metric("自然度",r.metrics.naturalness)}</div>
       </div>
       <div class="session-meta"><div><strong>${r.duration}<small>m</small></strong><span>开口时间</span></div><div><strong>${r.words.length}</strong><span>新单词</span></div><div><strong>${r.errors.length}</strong><span>真实纠错</span></div></div>
     </section>
-    <section class="card"><div class="section-head"><h2>本次对话主题</h2></div><div class="tag-row">${r.topics.map(x=>`<span class="tag"># ${esc(x)}</span>`).join("")}</div></section>
+    <section class="card"><div class="section-head"><h2>💬 本次对话主题</h2></div><div class="tag-row">${r.topics.map(x=>`<span class="tag"># ${esc(x)}</span>`).join("")}</div></section>
     <section class="card learning-card">
-      <div class="learning-row" onclick="go('words')"><div class="learning-icon">語</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
-      <div class="learning-row" onclick="go('patterns')"><div class="learning-icon">句</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
-      <div class="learning-row" onclick="go('errors')"><div class="learning-icon">正</div><div><b>${errors.length} 项真实纠错</b><p>${errors.slice(0,3).map(x=>x.type).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="go('words')"><div class="learning-icon">🌱</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="go('patterns')"><div class="learning-icon">🧩</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="go('errors')"><div class="learning-icon">🪄</div><div><b>${errors.length} 项真实纠错</b><p>${errors.slice(0,3).map(x=>x.type).join(" · ")}</p></div><span class="arrow">›</span></div>
     </section>
     <div class="dashboard-columns">
-      <section class="card reflection"><span class="tiny-label">本次整体复盘</span><p>${esc(r.reflection)}</p></section>
-      <section class="card suggestion"><span class="tiny-label">下一次学习建议</span><ul>${r.nextSteps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>
+      <section class="card reflection"><span class="tiny-label">🪞 本次整体复盘</span><p>${esc(r.reflection)}</p></section>
+      <section class="card suggestion"><span class="tiny-label">🌙 下一次学习建议</span><ul>${r.nextSteps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>
     </div>
     <button class="floating-import" aria-label="导入新日报" onclick="openImport()">＋</button>
   </main>`;
