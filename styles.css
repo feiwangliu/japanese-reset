@@ -270,6 +270,24 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
 .spoken-output>div:not(.section-head){padding:11px 0;border-top:1px solid var(--line)}
 .spoken-output b{display:block;font-family:Georgia,"Yu Mincho",serif;font-size:14px;line-height:1.6}
 .spoken-output span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.live-hero{border-radius:26px;padding:25px;margin-bottom:15px;background:linear-gradient(135deg,#707f8d,#8d829d);color:white;position:relative;overflow:hidden}
+.live-hero:after{content:"話";position:absolute;right:20px;top:4px;font-family:Georgia,"Yu Mincho",serif;font-size:90px;color:rgba(255,255,255,.08)}
+.live-hero span{font-size:9px;letter-spacing:.13em;color:#e6e4eb}
+.live-hero h1{font-size:28px;margin:9px 0 7px}
+.live-hero p{font-size:11px;line-height:1.65;color:#ecebf0;margin:0;max-width:75%}
+.live-config{padding-top:5px}
+.live-config>.page-subtitle{margin:0 0 18px}
+.live-primary-actions{display:grid;grid-template-columns:1.2fr 1fr;gap:8px}
+.live-howto{margin-top:14px;padding:14px;border-radius:14px;background:#ebe7ee}
+.live-howto b{font-size:11px;color:#71677f}
+.live-howto p{font-size:10px;line-height:1.6;color:var(--muted);margin:5px 0 0}
+.live-standard h2{font-size:16px;margin:0 0 12px}
+.live-standard>div{display:grid;grid-template-columns:30px 1fr;gap:9px;align-items:start;padding:11px 0;border-top:1px solid var(--line)}
+.live-standard>div>span{width:25px;height:25px;border-radius:9px;background:#dde6e3;color:#657c72;display:grid;place-items:center;font-size:11px;font-weight:800}
+.live-standard p{font-size:10px;line-height:1.55;color:var(--muted);margin:0}
+.live-standard p b{display:block;font-size:11px;color:var(--ink);margin-bottom:2px}
+.source-tabs{background:#dcd6e3}
+.library-count{text-align:right;color:var(--muted);font-size:10px;margin:-6px 3px 10px}
 @keyframes pulse{50%{transform:scale(1.04);box-shadow:0 0 0 6px rgba(158,85,79,.12)}}
 
 @media(min-width:800px){
@@ -299,4 +317,7 @@ textarea{display:block;width:100%;min-height:210px;resize:vertical;border:1px so
   .live-launch{align-items:flex-start}
   .live-launch .primary{font-size:10px}
   .mode-choice button{font-size:10px;padding:10px 3px}
+  .bottom-nav{display:flex;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
+  .bottom-nav::-webkit-scrollbar{display:none}
+  .nav-btn{flex:0 0 62px}
 }
