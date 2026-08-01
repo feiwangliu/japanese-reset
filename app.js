@@ -172,6 +172,7 @@ function todayText() {
   return new Intl.DateTimeFormat("zh-CN", { month:"long", day:"numeric", weekday:"short" }).format(new Date());
 }
 function render() {
+  document.body.dataset.page=currentTab;
   renderNav();
   const pages = { home: renderHome, live: renderLive, speaking: renderSpeaking, phrases: renderPhrases, errors: renderErrors, library: renderLibrary, me: renderMe };
   pages[currentTab]();
