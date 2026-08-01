@@ -118,6 +118,11 @@ let speakingRevealed = false;
 let speakingMode = "scene";
 let reflexIndex = 0;
 let reflexRevealed = false;
+let reflexRound = 0;
+let reflexRoundAnswered = new Set();
+let reflexRoundDone = false;
+let reflexRoundItems = [];
+let reflexOnlyStuck = false;
 let activeRecording = null;
 let recordingChunks = [];
 let playbackUrl = "";
@@ -181,12 +186,42 @@ function dailySpeakingItems() {
 }
 
 function dailyReflexItems(){
+  if(reflexRoundItems.length)return reflexRoundItems;
   const now=new Date();
   const seed=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
   const hash=id=>[...id].reduce((n,c)=>(n*33+c.charCodeAt(0))%1009,0);
-  const categories=["授受动词","て形连接","助词反射","固定搭配"];
-  const picked=categories.flatMap(category=>reflexDrills.filter(x=>x.category===category).sort((a,b)=>((hash(a.id)+seed)%97)-((hash(b.id)+seed)%97)).slice(0,category==="固定搭配"?4:2));
-  return picked.slice(0,10);
+  state.reflexRatings=state.reflexRatings||{};
+  state.reflexSeen=state.reflexSeen||[];
+  const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const ratingOf=item=>{
+    const value=state.reflexRatings[item.id];
+    return typeof value==="string"?{rating:value,nextDue:today}:value||null;
+  };
+  const priority=item=>{
+    const record=ratingOf(item);
+    if(!state.reflexSeen.includes(item.id))return 0;
+    if(record?.rating==="stuck")return 1;
+    if(record?.nextDue && record.nextDue<=today)return 2;
+    if(record?.rating==="finished")return 3;
+    return 4;
+  };
+  const pool=reflexOnlyStuck?reflexDrills.filter(item=>ratingOf(item)?.rating==="stuck"):reflexDrills;
+  const ordered=[...pool].sort((a,b)=>priority(a)-priority(b)||((hash(a.id)+seed+reflexRound*137)%1009)-((hash(b.id)+seed+reflexRound*137)%1009));
+  const selected=[],counts={};
+  for(const item of ordered){
+    if((counts[item.category]||0)>=2)continue;
+    selected.push(item);counts[item.category]=(counts[item.category]||0)+1;
+    if(selected.length===10)break;
+  }
+  if(selected.length<10){
+    for(const item of ordered){
+      if(selected.includes(item))continue;
+      selected.push(item);
+      if(selected.length===10)break;
+    }
+  }
+  reflexRoundItems=selected;
+  return reflexRoundItems;
 }
 
 function renderSpeaking() {
@@ -227,8 +262,18 @@ function renderReflex(){
   state.reflexRatings=state.reflexRatings||{};
   const items=dailyReflexItems();
   if(reflexIndex>=items.length)reflexIndex=0;
-  const p=items[reflexIndex],rating=state.reflexRatings[p.id];
-  const completed=items.filter(x=>state.reflexRatings[x.id]).length;
+  if(reflexRoundDone){
+    document.getElementById("app").innerHTML=`<main class="page speaking-page">
+      <div class="section-head speaking-top"><div><h1 class="page-title">基础反射</h1><p class="page-subtitle">这一组已经完成。下一组会优先使用新题和仍然卡住的题。</p></div><span class="daily-count">10/10</span></div>
+      <div class="daily-progress"><i style="width:100%"></i></div>
+      <section class="card reflex-card reflex-finish"><span class="tiny-label">ROUND COMPLETE</span><h2>这一轮结束</h2><p>继续练新题，或者只复习刚才需要想很久的结构。</p><div class="item-actions"><button class="primary" onclick="nextReflexRound()">再来10题</button><button class="secondary" onclick="retryStuckReflex()">只练卡住的</button></div></section>
+    </main>`;
+    return;
+  }
+  const p=items[reflexIndex],stored=state.reflexRatings[p.id];
+  const rating=typeof stored==="string"?stored:stored?.rating;
+  const completed=reflexRoundAnswered.size;
+  const categories=[...new Set(reflexDrills.map(x=>x.category))];
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">不背大长句，把基础结构练成不用思考的口腔反射。</p></div><span class="daily-count">${completed}/10</span></div>
     <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('scene')">场景开口</button><button class="active" onclick="setSpeakingMode('reflex')">基础反射</button></div>
@@ -241,7 +286,7 @@ function renderReflex(){
       ${reflexRevealed?`<div class="self-check"><span>这次需要想多久？</span><div><button class="${rating==="stuck"?"active":""}" onclick="rateReflex('stuck')">需要想很久</button><button class="${rating==="finished"?"active":""}" onclick="rateReflex('finished')">能说出来</button><button class="${rating==="instant"?"active":""}" onclick="rateReflex('instant')">脱口而出</button></div></div>`:""}
     </section>
     <div class="speaking-nav"><button class="secondary" onclick="moveReflex(-1)">上一题</button><button class="primary" onclick="moveReflex(1)">下一题</button></div>
-    <section class="card reflex-overview"><div><b>${reflexDrills.filter(x=>x.category==="授受动词").length}</b><span>授受动词</span></div><div><b>${reflexDrills.filter(x=>x.category==="て形连接").length}</b><span>て形连接</span></div><div><b>${reflexDrills.filter(x=>x.category==="助词反射").length}</b><span>助词</span></div><div><b>${reflexDrills.filter(x=>x.category==="固定搭配").length}</b><span>固定搭配</span></div></section>
+    <section class="card reflex-overview">${categories.map(category=>`<div><b>${reflexDrills.filter(x=>x.category===category).length}</b><span>${esc(category)}</span></div>`).join("")}</section>
   </main>`;
 }
 function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;renderSpeaking()}
@@ -249,8 +294,29 @@ function revealReflex(){reflexRevealed=true;renderReflex()}
 function moveReflex(step){reflexIndex=(reflexIndex+step+dailyReflexItems().length)%dailyReflexItems().length;reflexRevealed=false;renderReflex()}
 function rateReflex(rating){
   const p=dailyReflexItems()[reflexIndex];
-  state.reflexRatings=state.reflexRatings||{};state.reflexRatings[p.id]=rating;persist();
-  setTimeout(()=>moveReflex(1),180);
+  const now=new Date(),date=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const previous=state.reflexRatings?.[p.id];
+  const previousRating=typeof previous==="string"?previous:previous?.rating;
+  const streak=rating==="instant"?(previousRating==="instant"?(previous?.streak||1)+1:1):0;
+  const days=rating==="stuck"?1:rating==="finished"?3:7;
+  const due=new Date(now);due.setDate(due.getDate()+days);
+  const nextDue=`${due.getFullYear()}-${String(due.getMonth()+1).padStart(2,"0")}-${String(due.getDate()).padStart(2,"0")}`;
+  state.reflexRatings=state.reflexRatings||{};
+  state.reflexRatings[p.id]={rating,lastDate:date,nextDue,streak};
+  state.reflexSeen=state.reflexSeen||[];
+  if(!state.reflexSeen.includes(p.id))state.reflexSeen.push(p.id);
+  reflexRoundAnswered.add(p.id);persist();
+  if(reflexRoundAnswered.size>=dailyReflexItems().length){reflexRoundDone=true;setTimeout(renderReflex,180)}
+  else setTimeout(()=>moveReflex(1),180);
+}
+
+function nextReflexRound(){
+  reflexRound+=1;reflexIndex=0;reflexRevealed=false;reflexRoundAnswered=new Set();reflexRoundDone=false;reflexRoundItems=[];reflexOnlyStuck=false;renderReflex();
+}
+function retryStuckReflex(){
+  reflexRound+=1;reflexIndex=0;reflexRevealed=false;reflexRoundAnswered=new Set();reflexRoundDone=false;reflexRoundItems=[];reflexOnlyStuck=true;
+  if(!reflexDrills.some(item=>state.reflexRatings?.[item.id]?.rating==="stuck")){reflexOnlyStuck=false;}
+  renderReflex();
 }
 
 function revealSpeaking(){speakingRevealed=true;renderSpeaking()}
