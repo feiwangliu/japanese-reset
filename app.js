@@ -160,11 +160,20 @@ function render() {
   window.scrollTo({ top:0, behavior:"instant" });
 }
 function renderNav() {
+  const navIcons = {
+    home:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M9.5 20v-6h5v6"/></svg>',
+    live:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="13" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"/></svg>',
+    speaking:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17.5 3.5 21l4-1.4A8.5 8.5 0 1 0 5 17.5z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg>',
+    phrases:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 8h10M7 12h7M7 16h5"/></svg>',
+    errors:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/></svg>',
+    library:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v18H7.5A3.5 3.5 0 0 0 4 23zM20 5.5A3.5 3.5 0 0 0 16.5 2H13v18h3.5A3.5 3.5 0 0 1 20 23z"/></svg>',
+    me:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>'
+  };
   const tabs = [
-    ["home","⌂","首页"],["live","◉","Live陪练"],["speaking","◌","今日开口"],["phrases","▤","场景"],["errors","✓","纠错"],["library","Aa","词句"],["me","◷","记录"]
+    ["home","首页"],["live","Live陪练"],["speaking","今日开口"],["phrases","场景"],["errors","纠错"],["library","词句"],["me","记录"]
   ];
-  document.getElementById("nav").innerHTML = tabs.map(([id, icon, label]) =>
-    `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${icon}</span><span>${label}</span></button>`
+  document.getElementById("nav").innerHTML = tabs.map(([id, label]) =>
+    `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${navIcons[id]}</span><span>${label}</span></button>`
   ).join("");
 }
 function go(tab) { currentTab = tab; listFilter = "all"; render(); }
