@@ -172,7 +172,7 @@ html,body{background:var(--paper);color:var(--ink)}
 .daily-start p,.live-hero p{color:var(--muted)}
 .daily-start .tiny-label,.live-hero span{color:#d9897e}
 .daily-start .primary{background:var(--red)}
-.daily-start:before{right:30px;top:25px;width:60px;height:60px;opacity:1}
+.daily-start:before{right:18px;top:27px;width:190px;height:150px;background-image:url("assets/study-line.svg");opacity:1}
 .live-hero:after{right:30px;top:25px;width:62px;height:62px;opacity:1}
 .stage-card{border-radius:30px;background:#fff;box-shadow:var(--shadow)}
 .stage-step{min-height:120px;border:0;border-radius:22px;background:var(--cream)}
@@ -235,6 +235,18 @@ html,body{background:var(--paper);color:var(--ink)}
 .reflex-overview>div:nth-child(4n+2){background:var(--blue-soft)}
 .reflex-overview>div:nth-child(4n+3){background:var(--peach)}
 .reflex-overview b{display:block;font-family:Georgia,serif;font-size:20px}.reflex-overview span{font-size:9px;color:var(--muted)}
+.line-icon{width:19px;height:19px;display:inline-block;vertical-align:-4px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.section-head h2{display:flex;align-items:center;gap:9px}
+.section-head h2 .line-icon{width:21px;height:21px;color:#5c9fbc}
+.stage-step span{width:34px;height:34px;display:grid;place-items:center;color:#609eb9;filter:none}
+.stage-step span .line-icon{width:30px;height:30px}
+.focus-tags span{display:inline-flex;align-items:center;gap:4px}
+.focus-tags .line-icon{width:14px;height:14px;color:#5c9fbc}
+.learning-icon .line-icon{width:23px;height:23px;color:#5c9fbc}
+.tiny-label{display:inline-flex;align-items:center;gap:7px}.tiny-label .line-icon{width:15px;height:15px}
+.mini-btn{display:inline-flex;align-items:center;gap:6px}.mini-btn .line-icon{width:15px;height:15px}
+.record-btn{display:inline-flex;align-items:center;gap:8px}.record-btn .line-icon{width:18px;height:18px}
+.progress-card:after{display:none!important;content:""!important}
 @media(min-width:800px){
   #app{width:min(1000px,calc(100% - 250px));margin-left:230px}
   .bottom-nav{left:18px;top:18px;width:190px;height:calc(100svh - 36px);padding:110px 16px 24px;border-radius:30px;background:#050505}
@@ -248,7 +260,8 @@ html,body{background:var(--paper);color:var(--ink)}
   .hello h1,.workspace-head .hello h1{font-size:31px}
   .page-title{font-size:34px}
   .daily-start,.live-hero{min-height:215px;padding:30px}
-  .daily-start>div,.live-hero p{max-width:78%}
+  .daily-start>div{max-width:57%}.live-hero p{max-width:78%}
+  .daily-start:before{right:5px;top:45px;width:165px;height:130px}
   .reflex-overview{grid-template-columns:repeat(2,1fr)}
   .bottom-nav{display:flex;overflow-x:auto}.nav-btn{flex:0 0 61px}
 }
