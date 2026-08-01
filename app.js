@@ -137,6 +137,24 @@ function persist() {
 function esc(value="") {
   return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+function uiIcon(name, className="") {
+  const paths={
+    sprout:'<path d="M12 21v-8M12 13c-5 0-8-3-8-7 5 0 8 2 8 7zM12 10c0-5 3-8 8-8 0 5-3 8-8 8z"/>',
+    seed:'<path d="M12 21c-5-4-7-9-4-13 3-4 8-4 11 0 3 5-1 10-7 13z"/><path d="M12 17V9"/>',
+    leaf:'<path d="M4 18C5 8 11 3 21 3c0 10-6 16-17 15zM5 18c5-5 9-8 14-11"/>',
+    pin:'<path d="m8 3 8 2-2 5 4 4-6 1-5 6 1-7-4-4 6-1z"/>',
+    chat:'<path d="M5 17.5 3.5 21l4-1.4A8.5 8.5 0 1 0 5 17.5z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/>',
+    book:'<path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v18H7.5A3.5 3.5 0 0 0 4 23zM20 5.5A3.5 3.5 0 0 0 16.5 2H13v18h3.5A3.5 3.5 0 0 1 20 23z"/>',
+    correct:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/>',
+    calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01"/>',
+    chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    moon:'<path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5z"/>',
+    note:'<path d="M9 18V5l10-2v12M9 15c-3-1-6 0-6 3s4 3 6 0M19 12c-3-1-6 0-6 3s4 3 6 0"/>',
+    play:'<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>',
+    mic:'<rect x="8" y="3" width="8" height="13" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"/>'
+  };
+  return `<svg class="line-icon ${className}" viewBox="0 0 24 24" aria-hidden="true">${paths[name]||paths.sprout}</svg>`;
+}
 function latest() { return reports[0]; }
 function allItems(key) {
   const map = new Map();
@@ -253,12 +271,12 @@ function renderSpeaking() {
       <div class="lifeline-row">${p.lifelines.map(x=>`<button onclick='showLifeline(${JSON.stringify(x)})'>${esc(x)}</button>`).join("")}<button onclick="openAllLifelines()">更多</button></div>
       <div id="lifeline-hint" class="lifeline-hint"></div>
       <div class="recorder">
-        <button id="record-btn" class="record-btn" onclick="toggleRecording()">● 开始录音</button>
+        <button id="record-btn" class="record-btn" onclick="toggleRecording()">${uiIcon("mic")}开始录音</button>
         <span id="record-status">建议说20至30秒，可以分成几个短句。</span>
       </div>
       <div id="playback-wrap">${playbackUrl?`<audio controls src="${playbackUrl}"></audio>`:""}</div>
       ${speakingRevealed?`<div class="answer-panel">
-        <div class="answer-block primary-answer"><small>简单正确版｜做到这个程度就通过</small><p>${esc(p.easy)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.easy)})'>▷ 听一遍</button></div>
+        <div class="answer-block primary-answer"><small>简单正确版｜做到这个程度就通过</small><p>${esc(p.easy)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.easy)})'>${uiIcon("play")}听一遍</button></div>
         <details><summary>查看完整自然版，不要求背诵</summary><p>${esc(p.simple)}</p></details>
       </div>`:`<button class="secondary full reveal-answer" onclick="revealSpeaking()">我说完了，查看简单正确版</button>`}
       ${speakingRevealed?`<div class="self-check"><span>这次说得怎么样？</span><div><button class="${rating==="stuck"?"active":""}" onclick="rateSpeaking('stuck')">卡住了</button><button class="${rating==="finished"?"active":""}" onclick="rateSpeaking('finished')">说完了</button><button class="${rating==="instant"?"active":""}" onclick="rateSpeaking('instant')">脱口而出</button></div></div>`:""}
@@ -291,7 +309,7 @@ function renderReflex(){
       <div class="speaking-meta"><span>${esc(p.category)}</span><b>${reflexIndex+1} / ${items.length}</b></div>
       <span class="speak-instruction">看中文，尽量马上说出日语</span>
       <h2>${esc(p.prompt)}</h2>
-      ${reflexRevealed?`<div class="answer-panel"><div class="answer-block primary-answer"><small>简单正确版</small><p>${esc(p.answer)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.answer)})'>▷ 听一遍</button></div><div class="reflex-note">${esc(p.note)}</div></div>`:`<button class="secondary full reveal-answer" onclick="revealReflex()">我说完了，查看答案</button>`}
+      ${reflexRevealed?`<div class="answer-panel"><div class="answer-block primary-answer"><small>简单正确版</small><p>${esc(p.answer)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.answer)})'>${uiIcon("play")}听一遍</button></div><div class="reflex-note">${esc(p.note)}</div></div>`:`<button class="secondary full reveal-answer" onclick="revealReflex()">我说完了，查看答案</button>`}
       ${reflexRevealed?`<div class="self-check"><span>这次需要想多久？</span><div><button class="${rating==="stuck"?"active":""}" onclick="rateReflex('stuck')">需要想很久</button><button class="${rating==="finished"?"active":""}" onclick="rateReflex('finished')">能说出来</button><button class="${rating==="instant"?"active":""}" onclick="rateReflex('instant')">脱口而出</button></div></div>`:""}
     </section>
     <div class="speaking-nav"><button class="secondary" onclick="moveReflex(-1)">上一题</button><button class="primary" onclick="moveReflex(1)">下一题</button></div>
@@ -528,11 +546,11 @@ function renderHome() {
     </section>
 
     <section class="card stage-card">
-      <div class="section-head"><h2>🌱 我的成长阶段</h2><button class="text-btn" onclick="go('me')">查看成长记录 ›</button></div>
+      <div class="section-head"><h2>${uiIcon("sprout")}我的成长阶段</h2><button class="text-btn" onclick="go('me')">查看成长记录 ›</button></div>
       <div class="stage-grid">
-        <div class="stage-step done"><span>🌰</span><b>唤醒日语</b><small>找回熟悉的声音</small></div>
-        <div class="stage-step active"><span>🌱</span><b>${stage}</b><small>当前阶段</small></div>
-        <div class="stage-step"><span>🌿</span><b>自在交流</b><small>让表达更自然</small></div>
+        <div class="stage-step done"><span>${uiIcon("seed")}</span><b>唤醒日语</b><small>找回熟悉的声音</small></div>
+        <div class="stage-step active"><span>${uiIcon("sprout")}</span><b>${stage}</b><small>当前阶段</small></div>
+        <div class="stage-step"><span>${uiIcon("leaf")}</span><b>自在交流</b><small>让表达更自然</small></div>
       </div>
       <div class="stage-progress"><i style="width:${stageProgress}%"></i></div>
       <p class="stage-copy">现在不追求一次说得完美，而是把想说的话稳定地说出来。</p>
@@ -540,16 +558,16 @@ function renderHome() {
 
     <div class="workbench-grid">
       <section class="card focus-card">
-        <div class="section-head"><h2>📌 本次重点</h2><span class="soft-label">${formatDate(r.date)}</span></div>
+        <div class="section-head"><h2>${uiIcon("pin")}本次重点</h2><span class="soft-label">${formatDate(r.date)}</span></div>
         <div class="focus-tags">
-          <span>💬 ${esc(r.topics[0] || "日常表达")}</span>
-          <span>🌿 ${r.words.length} 个新词</span>
-          <span>🧩 ${r.patterns.length} 个句型</span>
-          <span>🪄 ${r.errors.length} 项纠错</span>
+          <span>${uiIcon("chat")} ${esc(r.topics[0] || "日常表达")}</span>
+          <span>${uiIcon("leaf")} ${r.words.length} 个新词</span>
+          <span>${uiIcon("book")} ${r.patterns.length} 个句型</span>
+          <span>${uiIcon("correct")} ${r.errors.length} 项纠错</span>
         </div>
       </section>
       <section class="card today-card">
-        <div class="section-head"><h2>📝 今日计划</h2><strong>${completedPlans}/${Math.min(3,r.nextSteps.length)}</strong></div>
+        <div class="section-head"><h2>${uiIcon("calendar")}今日计划</h2><strong>${completedPlans}/${Math.min(3,r.nextSteps.length)}</strong></div>
         <div class="plan-progress"><i style="width:${Math.round(completedPlans/Math.max(1,Math.min(3,r.nextSteps.length))*100)}%"></i></div>
         ${r.nextSteps.slice(0,3).map((x,i)=>`<button class="plan-row ${(state.planChecks||[])[i]?"checked":""}" onclick="togglePlan(${i})"><span>${(state.planChecks||[])[i]?"✓":""}</span><b>${esc(x)}</b></button>`).join("")}
       </section>
@@ -558,22 +576,22 @@ function renderHome() {
     <section class="card quote compact-quote"><span class="label">TODAY'S LINE · 今日のひとこと</span><blockquote>少しずつ、口から戻す。</blockquote><p>一点一点，把日语重新叫回来。</p></section>
     ${(r.spokenSentences||[]).length?`<section class="card spoken-output"><div class="section-head"><h2>本次真正说出来的句子</h2><span class="soft-label">${r.spokenSentences.length}句</span></div>${r.spokenSentences.slice(0,4).map(x=>`<div><b>${esc(x.japanese)}</b><span>${esc(x.meaning||"")}</span></div>`).join("")}</section>`:""}
     <section class="card">
-      <div class="section-head"><h2>📊 最近一次学习概览</h2><button class="text-btn" onclick="go('me')">成长记录 ›</button></div>
+      <div class="section-head"><h2>${uiIcon("chart")}最近一次学习概览</h2><button class="text-btn" onclick="go('me')">成长记录 ›</button></div>
       <div class="overview-grid">
         <div class="score-ring" style="--score:${r.score}%"><div><strong>${r.score}</strong><span>综合评分</span></div></div>
         <div class="score-items">${metric("流利度",r.metrics.fluency)}${metric("语法",r.metrics.grammar)}${metric("词汇",r.metrics.vocabulary)}${metric("自然度",r.metrics.naturalness)}</div>
       </div>
       <div class="session-meta"><div><strong>${r.duration}<small>m</small></strong><span>开口时间</span></div><div><strong>${r.words.length}</strong><span>新单词</span></div><div><strong>${r.errors.length}</strong><span>真实纠错</span></div></div>
     </section>
-    <section class="card"><div class="section-head"><h2>💬 本次对话主题</h2></div><div class="tag-row">${r.topics.map(x=>`<span class="tag"># ${esc(x)}</span>`).join("")}</div></section>
+    <section class="card"><div class="section-head"><h2>${uiIcon("chat")}本次对话主题</h2></div><div class="tag-row">${r.topics.map(x=>`<span class="tag"># ${esc(x)}</span>`).join("")}</div></section>
     <section class="card learning-card">
-      <div class="learning-row" onclick="libraryMode='words';go('library')"><div class="learning-icon">🌱</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
-      <div class="learning-row" onclick="libraryMode='patterns';go('library')"><div class="learning-icon">🧩</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
-      <div class="learning-row" onclick="go('errors')"><div class="learning-icon">🪄</div><div><b>${errors.length} 项真实纠错</b><p>${errors.slice(0,3).map(x=>x.type).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="libraryMode='words';go('library')"><div class="learning-icon">${uiIcon("leaf")}</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="libraryMode='patterns';go('library')"><div class="learning-icon">${uiIcon("book")}</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="go('errors')"><div class="learning-icon">${uiIcon("correct")}</div><div><b>${errors.length} 项真实纠错</b><p>${errors.slice(0,3).map(x=>x.type).join(" · ")}</p></div><span class="arrow">›</span></div>
     </section>
     <div class="dashboard-columns">
-      <section class="card reflection"><span class="tiny-label">🪞 本次整体复盘</span><p>${esc(r.reflection)}</p></section>
-      <section class="card suggestion"><span class="tiny-label">🌙 下一次学习建议</span><ul>${r.nextSteps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>
+      <section class="card reflection"><span class="tiny-label">${uiIcon("correct")}本次整体复盘</span><p>${esc(r.reflection)}</p></section>
+      <section class="card suggestion"><span class="tiny-label">${uiIcon("moon")}下一次学习建议</span><ul>${r.nextSteps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>
     </div>
     <button class="floating-import" aria-label="导入新日报" onclick="openImport()">＋</button>
   </main>`;
