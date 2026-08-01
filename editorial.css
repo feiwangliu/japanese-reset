@@ -247,6 +247,39 @@ html,body{background:var(--paper);color:var(--ink)}
 .mini-btn{display:inline-flex;align-items:center;gap:6px}.mini-btn .line-icon{width:15px;height:15px}
 .record-btn{display:inline-flex;align-items:center;gap:8px}.record-btn .line-icon{width:18px;height:18px}
 .progress-card:after{display:none!important;content:""!important}
+
+/* Distributed fine-line illustrations */
+.page{overflow:hidden;isolation:isolate}
+.page>*{position:relative;z-index:1}
+body[data-page] .page:before,body[data-page] .page:after{display:block!important;content:"";position:absolute;z-index:0;pointer-events:none;background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.52}
+body[data-page] .page:before{width:76px;height:76px;right:-7px;top:112px;background-image:url("assets/sprig.svg");transform:rotate(-8deg)}
+body[data-page] .page:after{width:60px;height:60px;left:-5px;top:440px;background-image:url("assets/notes.svg");transform:rotate(-9deg)}
+body[data-page="live"] .page:before{width:94px;height:94px;right:-4px;top:105px;background-image:url("assets/headphones.svg");opacity:.62}
+body[data-page="live"] .page:after{width:66px;height:66px;left:-4px;top:510px;background-image:url("assets/bird.svg")}
+body[data-page="speaking"] .page:before{width:76px;height:76px;right:-2px;top:110px;background-image:url("assets/notes.svg")}
+body[data-page="speaking"] .page:after{width:70px;height:70px;left:-5px;top:520px;background-image:url("assets/cat.svg")}
+body[data-page="phrases"] .page:before{width:84px;height:84px;right:-3px;top:105px;background-image:url("assets/teacup.svg");opacity:.65}
+body[data-page="phrases"] .page:after{width:72px;height:72px;left:-3px;top:510px;background-image:url("assets/books.svg")}
+body[data-page="errors"] .page:before{width:88px;height:88px;right:-4px;top:104px;background-image:url("assets/pencil-check.svg");opacity:.66}
+body[data-page="errors"] .page:after{width:64px;height:64px;left:-4px;top:500px;background-image:url("assets/sprig.svg")}
+body[data-page="library"] .page:before{width:88px;height:88px;right:-3px;top:105px;background-image:url("assets/books.svg");opacity:.66}
+body[data-page="library"] .page:after{width:62px;height:62px;left:-2px;top:510px;background-image:url("assets/teacup.svg")}
+body[data-page="me"] .page:before{width:80px;height:80px;right:-3px;top:108px;background-image:url("assets/sprig.svg");opacity:.65}
+body[data-page="me"] .page:after{width:68px;height:68px;left:-3px;top:505px;background-image:url("assets/bird.svg")}
+.live-config:before,.live-standard:before,.speaking-card:before,.reflex-card:before,.phrase-summary:before,.learning-card:before{display:block!important;content:"";position:absolute;right:19px;top:17px;width:34px;height:34px;background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.76;pointer-events:none}
+.live-config:before{background-image:url("assets/headphones.svg")}
+.live-standard:before{background-image:url("assets/notes.svg")}
+.speaking-card:before,.reflex-card:before{background-image:url("assets/notes.svg")}
+.phrase-summary:before{background-image:url("assets/teacup.svg");right:0;top:-45px;width:48px;height:48px}
+.learning-card:before{background-image:url("assets/books.svg")}
+.live-config .section-head,.live-standard .section-head,.speaking-card .speaking-meta,.reflex-card .speaking-meta,.learning-card .learning-row:first-child{padding-right:36px}
+.item-card{overflow:visible}
+.item-card:nth-of-type(4n+1):after,.item-card:nth-of-type(4n+3):after{display:block!important;content:"";position:absolute;right:14px;bottom:12px;width:27px;height:27px;background:url("assets/sprig.svg") center/contain no-repeat;opacity:.33;pointer-events:none}
+.item-card:nth-of-type(4n+3):after{background-image:url("assets/notes.svg")}
+.quote:before{display:block!important;content:"";position:absolute;right:54px;bottom:18px;width:48px;height:48px;background:url("assets/bird.svg") center/contain no-repeat;opacity:.55}
+@media(max-width:620px){
+  body[data-page] .page:before{right:-19px;opacity:.38}body[data-page] .page:after{left:-20px;opacity:.3}
+}
 @media(min-width:800px){
   #app{width:min(1000px,calc(100% - 250px));margin-left:230px}
   .bottom-nav{left:18px;top:18px;width:190px;height:calc(100svh - 36px);padding:110px 16px 24px;border-radius:30px;background:#050505}
