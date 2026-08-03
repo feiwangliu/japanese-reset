@@ -338,7 +338,7 @@ body[data-page="me"] .page:after{width:68px;height:68px;left:-3px;top:505px;back
 .stage-card,.overview-grid{position:relative}
 .stage-card{padding-right:250px;min-height:264px;overflow:hidden}
 .stage-card:before{display:none!important}
-.stage-card:after{display:block!important;content:"";position:absolute;z-index:0;right:20px;bottom:18px;width:220px;height:132px;background:url("assets/growth-garden.svg?v=20260803b") center/contain no-repeat;opacity:.88;pointer-events:none}
+.stage-card:after{display:block!important;content:"";position:absolute;z-index:0;right:20px;bottom:18px;width:220px;height:132px;background:url("assets/growth-garden.svg?v=20260803c") center/contain no-repeat;opacity:.88;pointer-events:none}
 .stage-card>*{position:relative;z-index:1}
 .stage-card .stage-grid{grid-template-columns:repeat(3,minmax(118px,1fr))}
 .overview-grid{min-height:210px;padding-right:245px}
