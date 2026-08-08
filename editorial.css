@@ -181,7 +181,7 @@ html,body{background:var(--editorial-paper)}
 @media(max-width:620px){.daily-start h2{font-size:29px}.bottom-nav{background:#fff;border:2px solid var(--editorial-ink);box-shadow:4px 4px 0 rgba(37,37,37,.1)}.nav-btn.active{color:var(--editorial-ink);background:var(--editorial-yellow);border-radius:12px}}
 
 /* Editorial cleanup: one visual language */
-body[data-page="home"] .daily-start:before{display:block!important;right:34px;top:40px;width:126px;height:126px;background:url("assets/bear-sticker.svg") center/contain no-repeat;opacity:1}
+body[data-page="home"] .daily-start:before{display:block!important;right:34px;top:40px;width:126px;height:126px;background:url("assets/bear-mascot-v2.webp?v=20260808e") center/contain no-repeat;opacity:1}
 body[data-page="home"] .daily-start{min-height:224px;padding:34px 205px 34px 34px}
 body[data-page="home"] .daily-start>div{max-width:520px}
 body[data-page="home"] .stage-card{padding:28px;min-height:0}
@@ -239,7 +239,7 @@ html,body{background:var(--editorial-paper)}
 .reflex-card{border:2px solid var(--editorial-ink);border-radius:22px;box-shadow:6px 6px 0 rgba(37,37,37,.1)}
 .reflex-card .speaking-meta span{border:2px solid var(--editorial-ink);background:var(--editorial-blue);color:var(--editorial-ink);font-weight:800}
 .reflex-card .secondary,.speaking-nav .secondary{border:2px solid var(--editorial-ink);background:#fff;color:var(--editorial-ink)}.speaking-nav .primary,.reflex-card .primary{background:var(--editorial-ink);border:2px solid var(--editorial-ink)}
-.reflex-trail{display:grid;grid-template-columns:repeat(10,1fr);gap:7px;margin:14px 2px 20px}.reflex-sticker{position:relative;display:block;aspect-ratio:1;background:url("assets/bear-sticker.svg") center/contain no-repeat;filter:grayscale(1);opacity:.23;transform:scale(.88);transition:.18s ease}.reflex-sticker.done{filter:none;opacity:1}.reflex-sticker.current{filter:none;opacity:1;transform:translateY(-3px) scale(1.06)}
+.reflex-trail{display:grid;grid-template-columns:repeat(10,minmax(0,44px));justify-content:space-between;gap:7px;margin:14px 2px 20px}.reflex-sticker{position:relative;display:block;width:100%;max-width:44px;aspect-ratio:1;background:url("assets/bear-mascot-v2.webp?v=20260808e") center/contain no-repeat;filter:grayscale(1);opacity:.23;transform:scale(.88);transition:.18s ease}.reflex-sticker.done{filter:none;opacity:1}.reflex-sticker.current{filter:none;opacity:1;transform:translateY(-3px) scale(1.03)}
 .reflex-sticker.current:after{content:"";position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--editorial-orange);border:1px solid var(--editorial-ink)}
 .reflex-overview>div{border:2px solid var(--editorial-ink);border-radius:15px;box-shadow:3px 3px 0 rgba(37,37,37,.08)}.reflex-overview>div:nth-child(4n+1){background:#FFF0B9}.reflex-overview>div:nth-child(4n+2){background:#CDE8F5}.reflex-overview>div:nth-child(4n+3){background:#F4D1CC}.reflex-overview>div:nth-child(4n){background:#fff}
 @media(min-width:800px){
