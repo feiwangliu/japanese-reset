@@ -306,6 +306,7 @@ function renderReflex(){
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">不背大长句，把基础结构练成不用思考的口腔反射。</p></div><span class="daily-count">${completed}/10</span></div>
     <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('scene')">场景开口</button><button class="active" onclick="setSpeakingMode('reflex')">基础反射</button></div>
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
+    <div class="reflex-trail" aria-label="本轮进度">${items.map((item,i)=>`<span class="reflex-sticker ${reflexRoundAnswered.has(item.id)?"done":""} ${i===reflexIndex?"current":""}"></span>`).join("")}</div>
     <section class="card reflex-card">
       <div class="speaking-meta"><span>${esc(p.category)}</span><b>${reflexIndex+1} / ${items.length}</b></div>
       <span class="speak-instruction">看中文，尽量马上说出日语</span>
