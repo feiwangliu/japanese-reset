@@ -180,6 +180,36 @@ html,body{background:var(--editorial-paper)}
 @media(min-width:800px){.bottom-nav{border:2px solid var(--editorial-ink);background:#fff;box-shadow:7px 7px 0 rgba(37,37,37,.1);backdrop-filter:none}.bottom-nav:before{font-family:Arial,"Hiragino Kaku Gothic ProN",sans-serif;font-weight:900;color:var(--editorial-ink)}.nav-btn{color:#555;border:2px solid transparent}.nav-btn:hover{transform:none;color:var(--editorial-ink);background:#FFF8E8}.nav-btn.active{border-color:var(--editorial-ink);background:var(--editorial-yellow);color:var(--editorial-ink);box-shadow:3px 3px 0 rgba(37,37,37,.12)}.nav-btn.active .nav-icon{color:var(--editorial-ink)}}
 @media(max-width:620px){.daily-start h2{font-size:29px}.bottom-nav{background:#fff;border:2px solid var(--editorial-ink);box-shadow:4px 4px 0 rgba(37,37,37,.1)}.nav-btn.active{color:var(--editorial-ink);background:var(--editorial-yellow);border-radius:12px}}
 
+/* Editorial cleanup: one visual language */
+body[data-page="home"] .daily-start:before{display:block!important;right:34px;top:40px;width:126px;height:126px;background:url("assets/bear-sticker.svg") center/contain no-repeat;opacity:1}
+body[data-page="home"] .daily-start{min-height:224px;padding:34px 205px 34px 34px}
+body[data-page="home"] .daily-start>div{max-width:520px}
+body[data-page="home"] .stage-card{padding:28px;min-height:0}
+body[data-page="home"] .stage-card:after{display:none!important}
+body[data-page="home"] .stage-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+body[data-page="home"] .stage-step{min-height:112px;box-shadow:none}
+body[data-page="home"] .focus-card,body[data-page="home"] .today-card,body[data-page="home"] .quote,body[data-page="home"] .learning-card,body[data-page="home"] .spoken-output,body[data-page="home"] .page>section.card:not(.daily-start):not(.stage-card){border:1px solid #DED7C6;border-radius:18px;box-shadow:none}
+body[data-page="home"] .focus-card{background:#FFF0B9}body[data-page="home"] .today-card{background:#fff}body[data-page="home"] .compact-quote{padding-right:28px}
+body[data-page="home"] .compact-quote:before,body[data-page="home"] .overview-grid:after,body[data-page="home"] .quote:before{display:none!important}
+body[data-page="home"] .overview-grid{padding-right:0;min-height:0}
+.bottom-nav:after{display:none!important}
+body[data-page="speaking"] .page:before,body[data-page="speaking"] .page:after,.reflex-card:before{display:none!important}
+.reflex-card{overflow:hidden}.reflex-card h2{font-family:"Yu Gothic","Hiragino Kaku Gothic ProN",sans-serif;font-weight:800;letter-spacing:-.02em}
+.reflex-overview{margin-top:22px}.reflex-overview>div{box-shadow:none}
+@media(max-width:620px){
+  body[data-page="home"] .daily-start{min-height:236px;padding:27px 118px 27px 27px}
+  body[data-page="home"] .daily-start:before{right:8px;top:66px;width:105px;height:105px}
+  body[data-page="home"] .daily-start>div{max-width:100%}
+  body[data-page="home"] .daily-start p{font-size:12px}
+  body[data-page="home"] .stage-card{padding:22px;min-height:0}
+  body[data-page="home"] .stage-card .section-head{align-items:flex-start}
+  body[data-page="home"] .stage-card .text-btn{font-size:10px}
+  body[data-page="home"] .stage-grid{gap:7px}
+  body[data-page="home"] .stage-step{min-height:96px;padding:11px 7px}
+  body[data-page="home"] .stage-step b{font-size:11px}
+  body[data-page="home"] .compact-quote{padding-right:22px}
+}
+
 /* Final editorial overrides */
 html,body{background:var(--editorial-paper)}
 .page-title,.hello h1,.workspace-head .hello h1,.daily-start h2,.section-head h2{font-family:Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-weight:900;letter-spacing:-.045em}
