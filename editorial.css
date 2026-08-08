@@ -316,7 +316,7 @@ body[data-page="me"] .page:after{width:68px;height:68px;left:-3px;top:505px;back
   #app{width:min(1040px,calc(100% - 270px));margin-left:244px}
   .bottom-nav{left:22px;top:22px;width:194px;height:calc(100svh - 44px);padding:108px 15px 24px;border:1px solid rgba(255,255,255,.86);border-radius:34px;background:rgba(248,252,253,.86);box-shadow:0 22px 55px rgba(64,101,117,.12);backdrop-filter:blur(22px)}
   .bottom-nav:before{left:25px;top:38px;color:#25383f;font-family:"Yu Mincho",Georgia,serif;font-weight:650}
-  .bottom-nav:after{content:"";position:absolute;right:20px;top:28px;width:44px;height:44px;background:url("assets/bird.svg") center/contain no-repeat;opacity:.78}
+  .bottom-nav:after{content:"";position:absolute;right:22px;top:70px;width:28px;height:28px;background:url("assets/bird.svg") center/contain no-repeat;opacity:.64}
   .nav-btn{height:58px;border-radius:18px;color:#667b84;font-size:13px;font-weight:610;letter-spacing:.01em;transition:.2s ease}
   .nav-btn:hover{background:rgba(255,255,255,.72);color:#477f99;transform:translateX(2px)}
   .nav-btn.active{background:#fff;color:#477f99;box-shadow:0 9px 24px rgba(69,121,145,.11)}
