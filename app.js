@@ -105,6 +105,10 @@ const liveEndPrompt = `今天的口语训练结束。请根据刚才真实发生
 
 let reports = load(STORAGE_KEY, []);
 let state = load(STATE_KEY, { savedWords: [], savedPatterns: [], masteredWords: [], masteredErrors: [] });
+state={
+  savedWords:[],savedPatterns:[],savedPhrases:[],masteredWords:[],masteredErrors:[],masteredPhrases:[],
+  ...state
+};
 let currentTab = "home";
 let listFilter = "all";
 let reviewIndex = 0;
@@ -115,7 +119,11 @@ let libraryMode = "words";
 let librarySource = "personal";
 let speakingIndex = 0;
 let speakingRevealed = false;
-let speakingMode = "scene";
+let speakingMode = "daily";
+let resourceMode = "phrases";
+let resourceQuery = "";
+let dailyIndex = 0;
+let dailyRevealed = false;
 let reflexIndex = 0;
 let reflexRevealed = false;
 let reflexRound = 0;
@@ -174,7 +182,7 @@ function todayText() {
 function render() {
   document.body.dataset.page=currentTab;
   renderNav();
-  const pages = { home: renderHome, live: renderLive, speaking: renderSpeaking, phrases: renderPhrases, errors: renderErrors, library: renderLibrary, me: renderMe };
+  const pages = { home: renderHome, live: renderLive, speaking: renderSpeaking, resources: renderResources, phrases: renderPhrases, errors: renderErrors, library: renderLibrary, me: renderMe };
   pages[currentTab]();
   window.scrollTo({ top:0, behavior:"instant" });
 }
@@ -183,19 +191,24 @@ function renderNav() {
     home:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M9.5 20v-6h5v6"/></svg>',
     live:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="13" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"/></svg>',
     speaking:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17.5 3.5 21l4-1.4A8.5 8.5 0 1 0 5 17.5z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg>',
-    phrases:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 8h10M7 12h7M7 16h5"/></svg>',
+    resources:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v18H7.5A3.5 3.5 0 0 0 4 23zM20 5.5A3.5 3.5 0 0 0 16.5 2H13v18h3.5A3.5 3.5 0 0 1 20 23z"/></svg>',
     errors:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/></svg>',
     library:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v18H7.5A3.5 3.5 0 0 0 4 23zM20 5.5A3.5 3.5 0 0 0 16.5 2H13v18h3.5A3.5 3.5 0 0 1 20 23z"/></svg>',
     me:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>'
   };
-  const tabs = [
-    ["home","首页"],["live","Live陪练"],["speaking","今日开口"],["phrases","场景"],["errors","纠错"],["library","词句"],["me","记录"]
-  ];
+  const tabs = [["home","首页"],["speaking","今日训练"],["live","Live陪练"],["resources","词句库"],["me","记录"]];
   document.getElementById("nav").innerHTML = tabs.map(([id, label]) =>
     `<button class="nav-btn ${currentTab===id?"active":""}" onclick="go('${id}')"><span class="nav-icon">${navIcons[id]}</span><span>${label}</span></button>`
   ).join("");
 }
-function go(tab) { currentTab = tab; listFilter = "all"; render(); }
+function go(tab) {
+  if(tab==="phrases"||tab==="errors"||tab==="library"){
+    resourceMode=tab==="phrases"?"phrases":tab==="errors"?"errors":libraryMode;
+    tab="resources";
+  }
+  currentTab = tab; listFilter = "all"; render();
+}
+function startDailyTraining(){speakingMode="daily";go("speaking")}
 
 function dailySpeakingItems() {
   const imported = reports.flatMap((r,ri)=>(r.stuckItems||[]).map((x,xi)=>({
@@ -252,7 +265,120 @@ function dailyReflexItems(){
   return reflexRoundItems;
 }
 
+function localDateISO(date=new Date()){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+function addDateDays(dateText,days){
+  const date=new Date(`${dateText}T12:00:00`);date.setDate(date.getDate()+days);return localDateISO(date);
+}
+function stableHash(value){return [...String(value)].reduce((n,c)=>(n*33+c.charCodeAt(0))%1000003,17)}
+function dailyPracticePool(){
+  const reflex=reflexDrills.map(x=>({
+    id:`reflex:${x.id}`,kind:"reflex",type:"基础反射",sourceId:x.id,prompt:x.prompt,answer:x.answer,note:x.note||"",lifelines:[]
+  }));
+  const imported=reports.flatMap((r,ri)=>(r.stuckItems||[]).map((x,xi)=>({
+    id:`stuck:${r.date}:${stableHash(x.prompt||x.corrected||`${ri}-${xi}`)}`,kind:"repair",type:"历史卡点",
+    prompt:x.prompt||"把上次卡住的意思重新说出来。",answer:x.corrected||"",note:x.note||x.original||"",lifelines:["～て……","で……","～んですが……"]
+  })));
+  const scene=speakingPrompts.map(x=>({
+    id:`scene:${x.id}`,kind:"scene",type:x.group||"场景开口",sourceId:x.id,prompt:x.prompt,answer:x.easy||x.simple,
+    detail:x.simple||"",note:"",lifelines:x.lifelines||[]
+  }));
+  const errors=allItems("errors").map(x=>({
+    id:`error:${stableHash(x.id)}`,kind:"repair",type:x.type||"真实纠错",
+    prompt:`把这句话重新说成简单正确的日语：${x.original}`,answer:x.corrected,note:x.note||"",lifelines:[]
+  }));
+  return {reflex,scene,repair:[...imported,...errors]};
+}
+function selectDailyGroup(items,count,seed,recent){
+  state.practiceRatings=state.practiceRatings||{};
+  const today=localDateISO();
+  const rank=item=>{
+    const record=state.practiceRatings[item.id];
+    if(record?.rating==="stuck"&&record.nextDue<=today)return 0;
+    if(record?.nextDue&&record.nextDue<=today)return 1;
+    if(!record)return 2;
+    if(recent.has(item.id))return 5;
+    return record.rating==="instant"?4:3;
+  };
+  return [...items].sort((a,b)=>rank(a)-rank(b)||((stableHash(a.id)+seed)%1000003)-((stableHash(b.id)+seed)%1000003)).slice(0,count);
+}
+function getDailySession(){
+  state.dailyGoal=[10,15,20].includes(Number(state.dailyGoal))?Number(state.dailyGoal):10;
+  state.dailySessions=state.dailySessions||{};
+  const today=localDateISO(),key=`${today}:${state.dailyGoal}`;
+  const pool=dailyPracticePool(),all=[...pool.reflex,...pool.scene,...pool.repair],byId=new Map(all.map(x=>[x.id,x]));
+  let session=state.dailySessions[key];
+  if(session&&session.ids.every(id=>byId.has(id)))return {...session,key,items:session.ids.map(id=>byId.get(id))};
+  const recent=new Set(Object.values(state.dailySessions).filter(x=>x.date!==today).slice(-7).flatMap(x=>x.ids||[]));
+  const counts=state.dailyGoal===20?[10,6,4]:state.dailyGoal===15?[7,5,3]:[5,3,2];
+  const seed=Number(today.replaceAll("-",""))+state.dailyGoal*97;
+  const items=[...selectDailyGroup(pool.reflex,counts[0],seed,recent),...selectDailyGroup(pool.scene,counts[1],seed+211,recent),...selectDailyGroup(pool.repair,counts[2],seed+419,recent)];
+  session={date:today,goal:state.dailyGoal,ids:items.map(x=>x.id),ratings:{}};
+  state.dailySessions[key]=session;
+  const keys=Object.keys(state.dailySessions).sort();
+  keys.slice(0,Math.max(0,keys.length-21)).forEach(old=>delete state.dailySessions[old]);
+  persist();
+  return {...session,key,items};
+}
+function dailySessionStats(){
+  const session=getDailySession(),ratings=state.dailySessions[session.key].ratings||{};
+  const values=Object.values(ratings);
+  return {total:session.items.length,completed:values.length,instant:values.filter(x=>x==="instant").length,stuck:values.filter(x=>x==="stuck").length};
+}
+function setDailyGoal(goal){
+  state.dailyGoal=Number(goal);dailyIndex=0;dailyRevealed=false;persist();renderDaily();
+}
+function renderDaily(){
+  const session=getDailySession(),stored=state.dailySessions[session.key],completed=Object.keys(stored.ratings||{}).length;
+  if(completed>=session.items.length){
+    const stats=dailySessionStats();
+    document.getElementById("app").innerHTML=`<main class="page speaking-page">
+      <div class="section-head speaking-top"><div><h1 class="page-title">今日训练完成</h1><p class="page-subtitle">系统会把卡住的内容放进下一次复习。</p></div><span class="daily-count">${stats.completed}/${stats.total}</span></div>
+      <section class="card reflex-card daily-finish"><span class="tiny-label">TODAY COMPLETE</span><h2>今天已经真正开口 ${stats.completed} 次</h2><div class="daily-result-grid"><div><b>${stats.instant}</b><span>脱口而出</span></div><div><b>${stats.completed-stats.instant-stats.stuck}</b><span>能说出来</span></div><div><b>${stats.stuck}</b><span>仍然卡住</span></div></div><p>卡住的题明天出现，能说出来的3天后复习，脱口而出的7天后再确认。</p><div class="item-actions"><button class="primary" onclick="setSpeakingMode('reflex')">继续专项练习</button><button class="secondary" onclick="go('home')">返回首页</button></div></section>
+    </main>`;return;
+  }
+  if(dailyIndex>=session.items.length||stored.ratings?.[session.items[dailyIndex]?.id])dailyIndex=session.items.findIndex(x=>!stored.ratings?.[x.id]);
+  const p=session.items[dailyIndex],rating=stored.ratings?.[p.id];
+  const groupCounts=session.items.reduce((m,x)=>(m[x.kind]=(m[x.kind]||0)+1,m),{});
+  document.getElementById("app").innerHTML=`<main class="page speaking-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">今日训练</h1><p class="page-subtitle">基础反射、真实场景和历史卡点已经混合排好。</p></div><span class="daily-count">${completed}/${session.items.length}</span></div>
+    <div class="speaking-mode-tabs"><button class="active" onclick="setSpeakingMode('daily')">今日安排</button><button onclick="setSpeakingMode('scene')">场景专项</button><button onclick="setSpeakingMode('reflex')">反射专项</button></div>
+    <div class="daily-goal-row"><span>今天练习量</span><div>${[10,15,20].map(n=>`<button class="${state.dailyGoal===n?"active":""}" onclick="setDailyGoal(${n})">${n}题</button>`).join("")}</div></div>
+    <div class="daily-progress"><i style="width:${Math.round(completed/session.items.length*100)}%"></i></div>
+    <div class="daily-mix-strip"><span>基础反射 ${groupCounts.reflex||0}</span><span>场景 ${groupCounts.scene||0}</span><span>历史纠错 ${groupCounts.repair||0}</span></div>
+    <section class="card speaking-card daily-practice-card">
+      <div class="speaking-meta"><span>${esc(p.type)}</span><b>${dailyIndex+1} / ${session.items.length}</b></div>
+      <span class="speak-instruction">先直接说，卡住也可以停顿后接下去</span><h2>${esc(p.prompt)}</h2>
+      ${p.lifelines.length?`<div class="lifeline-row">${p.lifelines.map(x=>`<button onclick='showLifeline(${JSON.stringify(x)})'>${esc(x)}</button>`).join("")}</div><div id="lifeline-hint" class="lifeline-hint"></div>`:""}
+      ${dailyRevealed?`<div class="answer-panel"><div class="answer-block primary-answer"><small>简单正确版</small><p>${esc(p.answer)}</p><button class="mini-btn" onclick='speak(${JSON.stringify(p.answer)})'>${uiIcon("play")}听一遍</button></div>${p.detail?`<details><summary>查看完整自然版，不要求背诵</summary><p>${esc(p.detail)}</p></details>`:""}${p.note?`<div class="reflex-note">${esc(p.note)}</div>`:""}</div>`:`<button class="secondary full reveal-answer" onclick="dailyRevealed=true;renderDaily()">我说完了，查看答案</button>`}
+      ${dailyRevealed?`<div class="self-check"><span>这次需要想多久？</span><div><button class="${rating==="stuck"?"active":""}" onclick="rateDaily('stuck')">卡住了</button><button class="${rating==="finished"?"active":""}" onclick="rateDaily('finished')">能说出来</button><button class="${rating==="instant"?"active":""}" onclick="rateDaily('instant')">脱口而出</button></div></div>`:""}
+    </section>
+    <div class="speaking-nav"><button class="secondary" onclick="moveDaily(-1)">上一题</button><button class="primary" onclick="moveDaily(1)">下一题</button></div>
+  </main>`;
+}
+function moveDaily(step){
+  const items=getDailySession().items;dailyIndex=(dailyIndex+step+items.length)%items.length;dailyRevealed=false;renderDaily();
+}
+function rateDaily(rating){
+  const session=getDailySession(),p=session.items[dailyIndex],today=localDateISO();
+  state.practiceRatings=state.practiceRatings||{};
+  const previous=state.practiceRatings[p.id],streak=rating==="instant"?(previous?.rating==="instant"?(previous.streak||1)+1:1):0;
+  const nextDue=addDateDays(today,rating==="stuck"?1:rating==="finished"?3:7);
+  state.practiceRatings[p.id]={rating,lastDate:today,nextDue,streak};
+  state.dailySessions[session.key].ratings[p.id]=rating;
+  if(p.kind==="reflex"){
+    state.reflexRatings=state.reflexRatings||{};state.reflexRatings[p.sourceId]={rating,lastDate:today,nextDue,streak};
+    state.reflexSeen=state.reflexSeen||[];if(!state.reflexSeen.includes(p.sourceId))state.reflexSeen.push(p.sourceId);
+  }
+  if(p.kind==="scene"){state.speakingRatings=state.speakingRatings||{};state.speakingRatings[p.sourceId]=rating}
+  persist();dailyRevealed=false;
+  const next=session.items.findIndex((x,i)=>i>dailyIndex&&!state.dailySessions[session.key].ratings[x.id]);
+  dailyIndex=next>=0?next:0;setTimeout(renderDaily,160);
+}
+
 function renderSpeaking() {
+  if(speakingMode==="daily") return renderDaily();
   if(speakingMode==="reflex") return renderReflex();
   state.speakingRatings = state.speakingRatings || {};
   const items=dailySpeakingItems();
@@ -262,7 +388,7 @@ function renderSpeaking() {
   const rating=state.speakingRatings[p.id];
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">意思说清楚、没有硬伤、卡住后能继续，就算通过。</p></div><span class="daily-count">${completed}/10</span></div>
-    <div class="speaking-mode-tabs"><button class="active" onclick="setSpeakingMode('scene')">场景开口</button><button onclick="setSpeakingMode('reflex')">基础反射</button></div>
+    <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('daily')">今日安排</button><button class="active" onclick="setSpeakingMode('scene')">场景专项</button><button onclick="setSpeakingMode('reflex')">反射专项</button></div>
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
     <section class="card speaking-card">
       <div class="speaking-meta"><span>${esc(p.group)}</span><b>${speakingIndex+1} / ${items.length}</b></div>
@@ -304,7 +430,7 @@ function renderReflex(){
   const categories=[...new Set(reflexDrills.map(x=>x.category))];
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">不背大长句，把基础结构练成不用思考的口腔反射。</p></div><span class="daily-count">${completed}/10</span></div>
-    <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('scene')">场景开口</button><button class="active" onclick="setSpeakingMode('reflex')">基础反射</button></div>
+    <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('daily')">今日安排</button><button onclick="setSpeakingMode('scene')">场景专项</button><button class="active" onclick="setSpeakingMode('reflex')">反射专项</button></div>
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
     <div class="reflex-trail" aria-label="本轮进度">${items.map((item,i)=>`<span class="reflex-sticker ${reflexRoundAnswered.has(item.id)?"done":""} ${i===reflexIndex?"current":""}">${i+1}</span>`).join("")}</div>
     <section class="card reflex-card">
@@ -318,7 +444,7 @@ function renderReflex(){
     <section class="card reflex-overview">${categories.map(category=>`<div><b>${reflexDrills.filter(x=>x.category===category).length}</b><span>${esc(category)}</span></div>`).join("")}</section>
   </main>`;
 }
-function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;renderSpeaking()}
+function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;dailyRevealed=false;renderSpeaking()}
 function revealReflex(){reflexRevealed=true;renderReflex()}
 function moveReflex(step){reflexIndex=(reflexIndex+step+dailyReflexItems().length)%dailyReflexItems().length;reflexRevealed=false;renderReflex()}
 function rateReflex(rating){
@@ -479,21 +605,47 @@ function stopRecordingIfNeeded(){
   if(playbackUrl){URL.revokeObjectURL(playbackUrl);playbackUrl=""}
 }
 
+function resourceTabs(){
+  const tabs=[["phrases","场景表达"],["words","单词"],["patterns","句型"],["errors","真实纠错"],["lifelines","续命词"]];
+  return `<div class="resource-tabs">${tabs.map(([id,label])=>`<button class="${resourceMode===id?"active":""}" onclick="setResourceMode('${id}')">${label}</button>`).join("")}</div>`;
+}
+function resourceHeader(title,subtitle){
+  return `<h1 class="page-title">${title}</h1><p class="page-subtitle">${subtitle}</p>${resourceTabs()}<div class="resource-search"><span>搜索</span><input value="${esc(resourceQuery)}" placeholder="输入中文或日语" oninput="resourceQuery=this.value;filterResourceCards(this.value)"></div>`;
+}
+function renderResources(){
+  if(resourceMode==="phrases")return renderPhrases();
+  if(resourceMode==="errors")return renderErrors();
+  if(resourceMode==="lifelines")return renderLifelines();
+  libraryMode=resourceMode;return renderLibrary();
+}
+function setResourceMode(mode){resourceMode=mode;listFilter="all";renderResources()}
+function filterResourceCards(value=resourceQuery){
+  const query=String(value).trim().toLowerCase();let visible=0;
+  document.querySelectorAll("[data-search]").forEach(card=>{const show=!query||card.dataset.search.toLowerCase().includes(query);card.hidden=!show;if(show)visible++});
+  const count=document.querySelector(".resource-visible-count");if(count)count.textContent=`显示 ${visible} 条`;
+}
+function renderLifelines(){
+  document.getElementById("app").innerHTML=`<main class="page resource-page">${resourceHeader("口语续命词","卡住时先接下去，不需要一次组成漂亮的长句。")}
+    <div class="library-count resource-visible-count">显示 ${lifelineWords.length} 条</div><div class="lifeline-library resource-lifelines">${lifelineWords.map(x=>`<button data-search="${esc(`${x.word} ${x.hint} ${x.example}`)}"><b>${esc(x.word)}</b><span>${esc(x.hint)}</span><small>${esc(x.example)}</small><i onclick='speak(${JSON.stringify(x.example)})'>听例句</i></button>`).join("")}</div></main>`;
+  filterResourceCards();
+}
+
 function renderPhrases() {
   state.savedPhrases = state.savedPhrases || [];
   state.masteredPhrases = state.masteredPhrases || [];
   const categories = ["全部", ...new Set(phraseBank.map(x=>x.category))];
   const items = phraseCategory === "全部" ? phraseBank : phraseBank.filter(x=>x.category===phraseCategory);
-  document.getElementById("app").innerHTML = `<main class="page phrase-page">
-    <h1 class="page-title">场景表达</h1><p class="page-subtitle">基础表达负责快速应对。先把事情办明白，再逐步补充原因和细节。</p>
+  document.getElementById("app").innerHTML = `<main class="page phrase-page resource-page">
+    ${resourceHeader("场景表达","基础表达负责快速应对。先把事情办明白，再逐步补充原因和细节。")}
     <div class="phrase-summary"><div><strong>${phraseBank.length}</strong><span>常用表达</span></div><div><strong>${categories.length-1}</strong><span>生活场景</span></div><div><strong>${state.masteredPhrases.length}</strong><span>已经会说</span></div></div>
     <div class="category-scroll">${categories.map(x=>`<button class="${phraseCategory===x?"active":""}" onclick='setPhraseCategory(${JSON.stringify(x)})'>${esc(x)}</button>`).join("")}</div>
-    <div class="phrase-list">${items.map(phraseCard).join("")}</div>
+    <div class="library-count resource-visible-count">显示 ${items.length} 条</div><div class="phrase-list">${items.map(phraseCard).join("")}</div>
   </main>`;
+  filterResourceCards();
 }
 function phraseCard(p) {
   const saved=state.savedPhrases.includes(p.id), mastered=state.masteredPhrases.includes(p.id);
-  return `<article class="item-card phrase-card ${mastered?"mastered":""}">
+  return `<article class="item-card phrase-card ${mastered?"mastered":""}" data-search="${esc(`${p.category} ${p.japanese} ${p.meaning}`)}">
     <span class="type-badge">${esc(p.category)}</span>
     <p class="jp-main">${esc(p.japanese)}</p><p class="meaning">${esc(p.meaning)}</p>
     <div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(p.japanese)})'>▷ 听发音</button><button class="mini-btn ${saved?"saved":""}" onclick='togglePhrase("saved",${JSON.stringify(p.id)})'>${saved?"已收藏":"收藏"}</button><button class="mini-btn ${mastered?"mastered-btn":""}" onclick='togglePhrase("mastered",${JSON.stringify(p.id)})'>${mastered?"✓ 会说了":"标记会说"}</button></div>
@@ -504,25 +656,34 @@ function togglePhrase(type,id){
   const key=type==="saved"?"savedPhrases":"masteredPhrases";
   state[key]=state[key]||[];
   state[key]=state[key].includes(id)?state[key].filter(x=>x!==id):[...state[key],id];
-  persist();renderPhrases();
+  persist();renderResources();
 }
 
 function renderLibrary(){
   const personalItems=allItems(libraryMode);
   const recommendedItems=libraryMode==="words"?recommendedWords:recommendedPatterns;
   const items=librarySource==="personal"?personalItems:recommendedItems;
-  document.getElementById("app").innerHTML=`<main class="page">
-    <h1 class="page-title">我的词句</h1><p class="page-subtitle">这里保存你在真实练习里遇到的个人词汇和可复用句型。</p>
+  document.getElementById("app").innerHTML=`<main class="page resource-page">
+    ${resourceHeader(libraryMode==="words"?"我的单词":"我的句型",libraryMode==="words"?"真正想说却没说出来的词，会在这里反复出现。":"把说过的话沉淀成可以反复调用的表达模型。")}
     <div class="segmented source-tabs"><button class="${librarySource==="personal"?"active":""}" onclick="setLibrarySource('personal')">我的练习记录</button><button class="${librarySource==="recommended"?"active":""}" onclick="setLibrarySource('recommended')">推荐扩展词句</button></div>
-    <div class="segmented"><button class="${libraryMode==="words"?"active":""}" onclick="setLibraryMode('words')">单词</button><button class="${libraryMode==="patterns"?"active":""}" onclick="setLibraryMode('patterns')">句型</button></div>
-    <div class="library-count">共 ${items.length} 条</div><div id="library-content"></div>
+    <div class="segmented resource-filter"><button class="${listFilter==="all"?"active":""}" onclick="setFilter('all')">全部</button><button class="${listFilter==="review"?"active":""}" onclick="setFilter('review')">待复习</button><button class="${listFilter==="saved"?"active":""}" onclick="setFilter('saved')">已收藏</button></div>
+    <div class="library-count resource-visible-count">显示 ${items.length} 条</div><div id="library-content"></div>
   </main>`;
-  document.getElementById("library-content").innerHTML=items.length
-    ? items.map(libraryMode==="words"?wordCard:patternCard).join("")
+  let shown=items;
+  if(listFilter==="saved")shown=libraryMode==="words"?items.filter(x=>state.savedWords.includes(x.id)):items.filter(x=>state.savedPatterns.includes(x.id));
+  if(listFilter==="review")shown=items.filter(x=>isLibraryDue(libraryMode,x.id));
+  document.getElementById("library-content").innerHTML=shown.length
+    ? shown.map(libraryMode==="words"?wordCard:patternCard).join("")
     : emptyList(libraryMode==="words"?"这里暂时没有单词":"这里暂时没有句型");
+  const dueCount=items.filter(x=>isLibraryDue(libraryMode,x.id)).length;
+  if(items.length)document.getElementById("library-content").insertAdjacentHTML("afterend",`<button class="primary full resource-review-btn" onclick="startLibraryReview('${libraryMode}')">随机复习 ${Math.min(10,dueCount||items.length)} 条</button>`);
+  filterResourceCards();
 }
-function setLibraryMode(mode){libraryMode=mode;renderLibrary()}
-function setLibrarySource(source){librarySource=source;renderLibrary()}
+function isLibraryDue(mode,id){
+  const record=(state.libraryReview||{})[`${mode}:${id}`];return !record||!record.nextDue||record.nextDue<=localDateISO();
+}
+function setLibraryMode(mode){libraryMode=mode;resourceMode=mode;renderResources()}
+function setLibrarySource(source){librarySource=source;renderResources()}
 
 function renderHome() {
   const r = latest();
@@ -539,11 +700,12 @@ function renderHome() {
   const completedPlans = (state.planChecks || []).filter(Boolean).length;
   const stage = reports.length < 5 ? "重新开口" : reports.length < 15 ? "建立语感" : "自然表达";
   const stageProgress = Math.min(100, reports.length < 5 ? reports.length * 20 : reports.length < 15 ? (reports.length-5)*10 : 100);
+  const dailyStats=dailySessionStats();
   document.getElementById("app").innerHTML = `<main class="page">
     <header class="topbar workspace-head"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>我的日语工作台</h1></div><div class="header-badges"><span>🔥 ${reports.length}</span><span>⭐ ${words.length + patterns.length}</span><div class="avatar">日</div></div></header>
     <div class="date-line"><span class="dot"></span>已整理 ${reports.length} 次练习 · 累计开口 ${totalMinutes} 分钟</div>
-    <section class="card daily-start" onclick="go('speaking')">
-      <div><span class="tiny-label">TODAY'S SPEAKING</span><h2>今天开口10次</h2><p>不追求完美。意思说清楚，卡住后能接下去，就算完成。</p></div>
+    <section class="card daily-start" onclick="startDailyTraining()">
+      <div><span class="tiny-label">TODAY'S SPEAKING</span><h2>今天开口${dailyStats.total}次</h2><p>基础反射、生活场景和历史卡点已经自动排好。</p><div class="daily-home-progress"><i style="width:${Math.round(dailyStats.completed/Math.max(1,dailyStats.total)*100)}%"></i></div><small>${dailyStats.completed} / ${dailyStats.total} 已完成</small></div>
       <button class="primary">开始训练</button>
     </section>
 
@@ -587,8 +749,8 @@ function renderHome() {
     </section>
     <section class="card"><div class="section-head"><h2>${uiIcon("chat")}本次对话主题</h2></div><div class="tag-row">${r.topics.map(x=>`<span class="tag"># ${esc(x)}</span>`).join("")}</div></section>
     <section class="card learning-card">
-      <div class="learning-row" onclick="libraryMode='words';go('library')"><div class="learning-icon">${uiIcon("leaf")}</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
-      <div class="learning-row" onclick="libraryMode='patterns';go('library')"><div class="learning-icon">${uiIcon("book")}</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="resourceMode='words';go('resources')"><div class="learning-icon">${uiIcon("leaf")}</div><div><b>${words.length} 个个人单词</b><p>${words.slice(0,3).map(x=>x.japanese).join(" · ")}</p></div><span class="arrow">›</span></div>
+      <div class="learning-row" onclick="resourceMode='patterns';go('resources')"><div class="learning-icon">${uiIcon("book")}</div><div><b>${patterns.length} 个自然句型</b><p>${patterns.slice(0,2).map(x=>x.pattern).join(" · ")}</p></div><span class="arrow">›</span></div>
       <div class="learning-row" onclick="go('errors')"><div class="learning-icon">${uiIcon("correct")}</div><div><b>${errors.length} 项真实纠错</b><p>${errors.slice(0,3).map(x=>x.type).join(" · ")}</p></div><span class="arrow">›</span></div>
     </section>
     <div class="dashboard-columns">
@@ -621,7 +783,7 @@ function renderWords() {
   </main>`;
 }
 function wordCard(w) {
-  return `<article class="item-card"><div class="item-top"><div><p class="jp-main">${esc(w.japanese)}</p><p class="meaning">${esc(w.meaning)}</p></div><span class="count-pill">${w.count?`出现 ${w.count} 次`:esc(w.category||"推荐")}</span></div>
+  return `<article class="item-card" data-search="${esc(`${w.japanese} ${w.meaning} ${w.example||""} ${w.category||""}`)}"><div class="item-top"><div><p class="jp-main">${esc(w.japanese)}</p><p class="meaning">${esc(w.meaning)}</p></div><span class="count-pill">${w.count?`出现 ${w.count} 次`:esc(w.category||"推荐")}</span></div>
     <div class="item-note">${esc(w.example)}</div><div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(w.japanese)})'>▷ 听发音</button><button class="mini-btn ${state.savedWords.includes(w.id)?"saved":""}" onclick='toggleSaved("word",${JSON.stringify(w.id)})'>${state.savedWords.includes(w.id)?"已收藏":"收藏"}</button></div></article>`;
 }
 function filterBtn(id,label) { return `<button class="${listFilter===id?"active":""}" onclick="setFilter('${id}')">${label}</button>`; }
@@ -631,14 +793,16 @@ function renderErrors() {
   let items = allItems("errors");
   const types = ["all", ...new Set(items.map(x=>x.type))];
   if (listFilter !== "all") items = items.filter(x=>x.type===listFilter);
-  document.getElementById("app").innerHTML = `<main class="page">
-    <h1 class="page-title">真实纠错</h1><p class="page-subtitle">只记录你在对话中真正犯过的错误。看见重复模式，比一次改对更重要。</p>
+  document.getElementById("app").innerHTML = `<main class="page resource-page">
+    ${resourceHeader("真实纠错","只记录你在对话中真正犯过的错误。看见重复模式，比一次改对更重要。")}
     <div class="segmented">${types.slice(0,4).map((x,i)=>filterBtn(x,i===0?"全部":x)).join("")}</div>
+    <div class="library-count resource-visible-count">显示 ${items.length} 条</div>
     ${items.length ? items.map(errorCard).join("") : emptyList("这里暂时没有纠错记录")}
   </main>`;
+  filterResourceCards();
 }
 function errorCard(e) {
-  return `<article class="item-card"><span class="type-badge">${esc(e.type)}</span><span class="count-pill" style="float:right">出现 ${e.count} 次</span>
+  return `<article class="item-card" data-search="${esc(`${e.type} ${e.original} ${e.corrected} ${e.note||""}`)}"><span class="type-badge">${esc(e.type)}</span><span class="count-pill" style="float:right">出现 ${e.count} 次</span>
     <div class="original"><small>你当时的表达</small>${esc(e.original)}</div>
     <div class="corrected"><small>更自然的说法</small>${esc(e.corrected)}</div>
     <div class="item-note">${esc(e.note)}</div><div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(e.corrected)})'>▷ 听自然表达</button></div></article>`;
@@ -654,7 +818,7 @@ function renderPatterns() {
   </main>`;
 }
 function patternCard(p) {
-  return `<article class="item-card"><div class="item-top"><div><p class="jp-main">${esc(p.pattern)}</p><p class="meaning">${esc(p.meaning)}</p></div><span class="count-pill">${p.count?`出现 ${p.count} 次`:esc(p.category||"推荐")}</span></div>
+  return `<article class="item-card" data-search="${esc(`${p.pattern} ${p.meaning} ${p.example||""} ${p.translation||""} ${p.category||""}`)}"><div class="item-top"><div><p class="jp-main">${esc(p.pattern)}</p><p class="meaning">${esc(p.meaning)}</p></div><span class="count-pill">${p.count?`出现 ${p.count} 次`:esc(p.category||"推荐")}</span></div>
     <div class="pattern-example"><b>${esc(p.example)}</b><span>${esc(p.translation)}</span></div>
     <div class="item-actions"><button class="mini-btn" onclick='speak(${JSON.stringify(p.example)})'>▷ 听例句</button><button class="mini-btn ${state.savedPatterns.includes(p.id)?"saved":""}" onclick='toggleSaved("pattern",${JSON.stringify(p.id)})'>${state.savedPatterns.includes(p.id)?"已收藏":"收藏"}</button></div></article>`;
 }
@@ -662,9 +826,16 @@ function patternCard(p) {
 function renderMe() {
   const totalMinutes = reports.reduce((n,r)=>n+Number(r.duration||0),0);
   const avg = reports.length ? Math.round(reports.reduce((n,r)=>n+Number(r.score||0),0)/reports.length) : 0;
+  const practiceRecords=Object.values(state.practiceRatings||{}),today=localDateISO();
+  const dailyAnswers=Object.values(state.dailySessions||{}).reduce((n,s)=>n+Object.keys(s.ratings||{}).length,0);
+  const instant=practiceRecords.filter(x=>x.rating==="instant").length;
+  const stuck=practiceRecords.filter(x=>x.rating==="stuck").length;
+  const mastered=practiceRecords.filter(x=>x.rating==="instant"&&(x.streak||0)>=3).length;
+  const due=practiceRecords.filter(x=>x.nextDue&&x.nextDue<=today).length;
   document.getElementById("app").innerHTML = `<main class="page">
     <h1 class="page-title">成长记录</h1><p class="page-subtitle">语言进步很少发生在一夜之间。这里保存每一次开口留下的证据。</p>
-    <section class="card progress-card"><span class="tiny-label" style="color:#d8e4db">JAPANESE RESET</span><h2>${totalMinutes} min</h2><p>共完成 ${reports.length} 次练习 · 平均评分 ${avg}</p></section>
+    <section class="card progress-card"><span class="tiny-label" style="color:#d8e4db">JAPANESE RESET</span><h2>${dailyAnswers} 次真实开口</h2><p>Live累计 ${totalMinutes} 分钟 · 已整理 ${reports.length} 次对话</p></section>
+    <section class="card useful-metrics"><div class="section-head"><h2>真正有用的进度</h2><span class="soft-label">平均评分 ${avg}</span></div><div class="daily-result-grid"><div><b>${instant}</b><span>脱口而出</span></div><div><b>${stuck}</b><span>仍然卡住</span></div><div><b>${due}</b><span>今日待复习</span></div><div><b>${mastered}</b><span>稳定掌握</span></div></div></section>
     <section class="card"><div class="section-head"><h2>练习记录</h2><button class="text-btn" onclick="openPrompt()">日报模板</button></div>
       ${reports.length ? reports.map(historyRow).join("") : `<p class="page-subtitle">还没有导入练习记录。</p>`}
     </section>
@@ -718,11 +889,12 @@ function importReport() {
   try {
     const text = input.value.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
     const parsed = JSON.parse(text);
-    const incoming = Array.isArray(parsed) ? parsed : [parsed];
+    const incoming = (Array.isArray(parsed) ? parsed : [parsed]).map(r=>({...r,date:r.date||localDateISO()}));
     if (!incoming.length) throw new Error("历史包中没有学习日报");
     incoming.forEach(validateReport);
     const existingIds = new Set(reports.map(r=>r.id).filter(Boolean));
-    const normalized = incoming.map(normalizeReport).filter(r=>!existingIds.has(r.id));
+    const existingFingerprints=new Set(reports.map(reportFingerprint));
+    const normalized = incoming.map(normalizeReport).filter(r=>!existingIds.has(r.id)&&!existingFingerprints.has(reportFingerprint(r)));
     if (!normalized.length) throw new Error("这些练习已经导入过了");
     reports = [...normalized, ...reports];
     reports.sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id));
@@ -740,10 +912,11 @@ function validateReport(r) {
 }
 function normalizeReport(r) {
   const score = n => Math.max(0,Math.min(100,Number(n)||0));
-  return { ...r, id:r.id || `${r.date}-${Date.now()}`, duration:Number(r.duration)||0, score:score(r.score), metrics:{
+  return { ...r, id:r.id || `${r.date}-${stableHash(reportFingerprint(r))}`, duration:Number(r.duration)||0, score:score(r.score), metrics:{
     fluency:score(r.metrics.fluency), grammar:score(r.metrics.grammar), vocabulary:score(r.metrics.vocabulary), naturalness:score(r.metrics.naturalness)
   }};
 }
+function reportFingerprint(r){return JSON.stringify([r.date,Number(r.duration)||0,r.topics||[],r.spokenSentences||[],r.reflection||""])}
 function closeModal() { document.getElementById("modal-root").innerHTML=""; }
 function backdropClose(e) { if (e.target.classList.contains("modal-backdrop")) closeModal(); }
 function loadDemo() { reports=[sampleReport]; persist(); render(); toast("已载入一份演示日报"); }
@@ -754,7 +927,14 @@ function toast(text) {
 }
 
 function startReview() {
-  const items=allItems("words").filter(x=>!state.masteredWords.includes(x.id));
+  return startLibraryReview("words");
+}
+function startLibraryReview(mode) {
+  const personal=allItems(mode),recommended=mode==="words"?recommendedWords:recommendedPatterns;
+  let items=(librarySource==="recommended"?recommended:personal).filter(x=>isLibraryDue(mode,x.id));
+  if(!items.length)items=librarySource==="recommended"?recommended:personal;
+  items=[...items].sort((a,b)=>stableHash(`${localDateISO()}:${a.id}`)-stableHash(`${localDateISO()}:${b.id}`)).slice(0,10);
+  items=items.map(x=>mode==="words"?{...x,reviewMode:"words"}:{...x,japanese:x.pattern,example:x.example,reviewMode:"patterns"});
   if (!items.length) return toast("目前没有待复习单词");
   reviewQueue=items; reviewIndex=0; reviewRevealed=false; renderReview();
 }
@@ -770,7 +950,10 @@ function renderReview() {
 }
 function revealReview(){reviewRevealed=true;renderReview()}
 function reviewRate(rate){
-  if(rate==="got") state.masteredWords=[...new Set([...state.masteredWords,reviewQueue[reviewIndex].id])];
+  const item=reviewQueue[reviewIndex],today=localDateISO(),days=rate==="again"?1:rate==="almost"?3:7;
+  state.libraryReview=state.libraryReview||{};
+  state.libraryReview[`${item.reviewMode||"words"}:${item.id}`]={rating:rate,lastDate:today,nextDue:addDateDays(today,days)};
+  if(rate==="got"&&(item.reviewMode||"words")==="words") state.masteredWords=[...new Set([...state.masteredWords,item.id])];
   persist();
   reviewIndex++;
   if(reviewIndex>=reviewQueue.length){render();toast("本轮复习完成");return}
