@@ -613,7 +613,7 @@ function resourceTabs(){
   return `<div class="resource-tabs">${tabs.map(([id,label])=>`<button class="${resourceMode===id?"active":""}" onclick="setResourceMode('${id}')">${label}</button>`).join("")}</div>`;
 }
 function resourceHeader(title,subtitle){
-  return `<h1 class="page-title">${title}</h1><p class="page-subtitle">${subtitle}</p>${resourceTabs()}<div class="resource-search"><span>搜索</span><input value="${esc(resourceQuery)}" placeholder="输入中文或日语" oninput="resourceQuery=this.value;filterResourceCards(this.value)"></div>`;
+  return `<h1 class="page-title">${title}</h1><p class="page-subtitle">${subtitle}</p>${resourceTabs()}<div class="resource-search"><span>搜索</span><input value="${esc(resourceQuery)}" placeholder="输入中文、日语或分类" oninput="setResourceQuery(this.value)"></div>`;
 }
 function renderResources(){
   if(resourceMode==="phrases")return renderPhrases();
@@ -622,6 +622,16 @@ function renderResources(){
   libraryMode=resourceMode;return renderLibrary();
 }
 function setResourceMode(mode){resourceMode=mode;listFilter="all";renderResources()}
+function setResourceQuery(value){
+  resourceQuery=value;
+  if(resourceMode==="words"||resourceMode==="patterns"){
+    renderResources();
+    const input=document.querySelector(".resource-search input");
+    input?.focus();input?.setSelectionRange(value.length,value.length);
+    return;
+  }
+  filterResourceCards(value);
+}
 function filterResourceCards(value=resourceQuery){
   const query=String(value).trim().toLowerCase();let visible=0;
   document.querySelectorAll("[data-search]").forEach(card=>{const show=!query||card.dataset.search.toLowerCase().includes(query);card.hidden=!show;if(show)visible++});
@@ -665,12 +675,13 @@ function togglePhrase(type,id){
 function renderLibrary(){
   const personalItems=allItems(libraryMode);
   const recommendedItems=libraryMode==="words"?recommendedWords:recommendedPatterns;
-  const items=librarySource==="personal"?personalItems:recommendedItems;
+  const searching=Boolean(resourceQuery.trim());
+  const items=searching?[...personalItems,...recommendedItems]:(librarySource==="personal"?personalItems:recommendedItems);
   document.getElementById("app").innerHTML=`<main class="page resource-page">
     ${resourceHeader(libraryMode==="words"?"我的单词":"我的句型",libraryMode==="words"?"真正想说却没说出来的词，会在这里反复出现。":"把说过的话沉淀成可以反复调用的表达模型。")}
     <div class="segmented source-tabs"><button class="${librarySource==="personal"?"active":""}" onclick="setLibrarySource('personal')">我的练习记录</button><button class="${librarySource==="recommended"?"active":""}" onclick="setLibrarySource('recommended')">推荐扩展词句</button></div>
     <div class="segmented resource-filter"><button class="${listFilter==="all"?"active":""}" onclick="setFilter('all')">全部</button><button class="${listFilter==="review"?"active":""}" onclick="setFilter('review')">待复习</button><button class="${listFilter==="saved"?"active":""}" onclick="setFilter('saved')">已收藏</button></div>
-    <div class="library-count resource-visible-count">显示 ${items.length} 条</div><div id="library-content"></div>
+    <div class="library-count resource-visible-count">显示 ${items.length} 条${searching?" · 已搜索全部来源":""}</div><div id="library-content"></div>
   </main>`;
   let shown=items;
   if(listFilter==="saved")shown=libraryMode==="words"?items.filter(x=>state.savedWords.includes(x.id)):items.filter(x=>state.savedPatterns.includes(x.id));
