@@ -274,7 +274,8 @@ function addDateDays(dateText,days){
 function stableHash(value){return [...String(value)].reduce((n,c)=>(n*33+c.charCodeAt(0))%1000003,17)}
 function dailyPracticePool(){
   const reflex=reflexDrills.map(x=>({
-    id:`reflex:${x.id}`,kind:"reflex",type:"基础反射",sourceId:x.id,prompt:x.prompt,answer:x.answer,note:x.note||"",lifelines:[]
+    id:`reflex:${x.id}`,kind:"reflex",type:x.category||"基础反射",sourceId:x.id,prompt:x.prompt,answer:x.answer,note:x.note||"",lifelines:[],
+    weak:x.category==="手部动作"
   }));
   const imported=reports.flatMap((r,ri)=>(r.stuckItems||[]).map((x,xi)=>({
     id:`stuck:${r.date}:${stableHash(x.prompt||x.corrected||`${ri}-${xi}`)}`,kind:"repair",type:"历史卡点",
@@ -297,6 +298,7 @@ function selectDailyGroup(items,count,seed,recent){
     const record=state.practiceRatings[item.id];
     if(record?.rating==="stuck"&&record.nextDue<=today)return 0;
     if(record?.nextDue&&record.nextDue<=today)return 1;
+    if(!record&&item.weak)return 1.5;
     if(!record)return 2;
     if(recent.has(item.id))return 5;
     return record.rating==="instant"?4:3;
@@ -304,17 +306,18 @@ function selectDailyGroup(items,count,seed,recent){
   return [...items].sort((a,b)=>rank(a)-rank(b)||((stableHash(a.id)+seed)%1000003)-((stableHash(b.id)+seed)%1000003)).slice(0,count);
 }
 function getDailySession(){
+  const contentVersion="20260824f";
   state.dailyGoal=[10,15,20].includes(Number(state.dailyGoal))?Number(state.dailyGoal):10;
   state.dailySessions=state.dailySessions||{};
   const today=localDateISO(),key=`${today}:${state.dailyGoal}`;
   const pool=dailyPracticePool(),all=[...pool.reflex,...pool.scene,...pool.repair],byId=new Map(all.map(x=>[x.id,x]));
   let session=state.dailySessions[key];
-  if(session&&session.ids.every(id=>byId.has(id)))return {...session,key,items:session.ids.map(id=>byId.get(id))};
+  if(session&&session.version===contentVersion&&session.ids.every(id=>byId.has(id)))return {...session,key,items:session.ids.map(id=>byId.get(id))};
   const recent=new Set(Object.values(state.dailySessions).filter(x=>x.date!==today).slice(-7).flatMap(x=>x.ids||[]));
   const counts=state.dailyGoal===20?[10,6,4]:state.dailyGoal===15?[7,5,3]:[5,3,2];
   const seed=Number(today.replaceAll("-",""))+state.dailyGoal*97;
   const items=[...selectDailyGroup(pool.reflex,counts[0],seed,recent),...selectDailyGroup(pool.scene,counts[1],seed+211,recent),...selectDailyGroup(pool.repair,counts[2],seed+419,recent)];
-  session={date:today,goal:state.dailyGoal,ids:items.map(x=>x.id),ratings:{}};
+  session={date:today,goal:state.dailyGoal,version:contentVersion,ids:items.map(x=>x.id),ratings:{}};
   state.dailySessions[key]=session;
   const keys=Object.keys(state.dailySessions).sort();
   keys.slice(0,Math.max(0,keys.length-21)).forEach(old=>delete state.dailySessions[old]);
