@@ -135,3 +135,103 @@ body[data-page] .page:before,body[data-page] .page:after,.live-config:before,.li
   .reflex-trail{grid-template-columns:repeat(10,minmax(22px,1fr));gap:3px}
   .reflex-sticker{max-width:34px;font-size:10px}
 }
+
+/* Full-site editorial unification */
+.header-badges>span,.soft-label,.daily-count,.library-count,.count-pill,.type-badge{
+  background:#fff;border:1px solid var(--ed-ink);border-radius:8px;color:var(--ed-ink);box-shadow:none
+}
+.daily-count{padding:8px 11px;font-weight:900}
+.soft-label,.count-pill,.type-badge{padding:5px 8px;font-weight:700}
+.avatar{background:var(--ed-yellow);border:2px solid var(--ed-ink);color:var(--ed-ink);box-shadow:none}
+
+/* Live practice */
+.live-hero{
+  min-height:205px;padding:35px;background:var(--ed-blue);border:2px solid var(--ed-ink);
+  border-radius:20px;color:var(--ed-ink);box-shadow:6px 6px 0 rgba(37,37,37,.12)
+}
+.live-hero span{color:var(--ed-ink);font-weight:900;letter-spacing:.11em}.live-hero h1{color:var(--ed-ink);font-size:36px}.live-hero p{color:#2F4653;font-weight:600;max-width:560px}
+.live-config,.live-standard{padding:25px;background:#fff;border:2px solid var(--ed-ink);border-radius:18px;box-shadow:none}
+.field-label{color:var(--ed-ink);font-weight:900}
+.choice-grid button{
+  min-height:58px;background:#fff;border:1px solid var(--ed-ink);border-radius:10px;color:var(--ed-ink);box-shadow:none
+}
+.choice-grid button:nth-child(n){background:#fff}.choice-grid button.active{background:var(--ed-yellow);border:2px solid var(--ed-ink);color:var(--ed-ink);box-shadow:3px 3px 0 rgba(37,37,37,.1)}
+.choice-grid button.active small,.choice-grid button small{color:var(--ed-muted)}
+.text-input,textarea,.prompt-box{background:#fff;border:1.5px solid var(--ed-ink);border-radius:10px;color:var(--ed-ink);box-shadow:none}
+.live-howto,.end-session-box{background:#FFF0B8;border:1.5px solid var(--ed-ink);border-radius:12px;color:var(--ed-ink)}
+.end-session-box{background:#F5D8D3}.live-primary-actions{gap:9px}
+.live-standard h2{font-family:Arial,"Hiragino Kaku Gothic ProN",sans-serif;font-weight:900}
+.live-standard>div{border-top:1px solid var(--ed-ink)}
+.live-standard>div>span{background:var(--ed-orange);border:1px solid var(--ed-ink);border-radius:7px;color:#fff;box-shadow:none}
+
+/* Speaking and reflex */
+.speaking-card{background:#fff;border:2px solid var(--ed-ink);border-radius:18px;box-shadow:5px 5px 0 rgba(37,37,37,.1)}
+.speaking-card>h2{font-family:"Yu Gothic","Hiragino Kaku Gothic ProN",sans-serif;color:var(--ed-ink);font-weight:800}
+.speaking-meta{padding-right:0}.speaking-meta span{background:var(--ed-blue);border:1px solid var(--ed-ink);border-radius:8px;color:var(--ed-ink);font-weight:800}
+.lifeline-row button{background:#fff;border:1px solid var(--ed-ink);border-radius:8px;color:var(--ed-ink)}
+.lifeline-row button:hover{background:#FFF0B8}
+.lifeline-hint,.answer-block,.end-session-box{background:#E3F1F8;border:1px solid var(--ed-ink);border-radius:11px;color:var(--ed-ink)}
+.recorder{border-top:1px solid var(--ed-ink)}
+.record-btn{background:var(--ed-orange);border:1.5px solid var(--ed-ink);border-radius:10px;color:#fff;box-shadow:none}
+.record-btn.recording{background:#D95645}
+.mini-btn{background:#fff;border:1px solid var(--ed-ink);border-radius:8px;color:var(--ed-ink);box-shadow:none}
+.mini-btn.saved,.mastered-btn{background:var(--ed-yellow)!important;border-color:var(--ed-ink)!important;color:var(--ed-ink)!important}
+.self-check{border-top:1px solid var(--ed-ink)}
+.self-check button{background:#fff;border:1px solid var(--ed-ink);border-radius:9px;color:var(--ed-ink)}
+.self-check button:nth-child(n){background:#fff}.self-check button.active{background:var(--ed-yellow);border:2px solid var(--ed-ink)}
+.reflex-note,details{background:#FFF7DE;border:1px solid var(--ed-line);border-radius:10px}
+
+/* Scene phrases and personal library */
+.phrase-summary div,.phrase-summary div:nth-child(n){
+  background:#fff;border:2px solid var(--ed-ink);border-radius:14px;box-shadow:none;transform:none
+}
+.phrase-summary div:nth-child(1){background:#FFF0B8}.phrase-summary div:nth-child(2){background:#DDEEF7}.phrase-summary div:nth-child(3){background:#F5D8D3}
+.phrase-summary strong,.phrase-summary span{color:var(--ed-ink)}.phrase-summary strong{font-family:Arial,sans-serif;font-weight:900}
+.category-scroll button{background:#fff;border:1px solid var(--ed-ink);border-radius:8px;color:var(--ed-ink);box-shadow:none}
+.category-scroll button.active{background:var(--ed-yellow);border:2px solid var(--ed-ink);color:var(--ed-ink)}
+.segmented,.source-tabs{padding:3px;background:#fff;border:1px solid var(--ed-ink);border-radius:11px}
+.segmented button,.source-tabs button{border-radius:7px;color:var(--ed-muted)}
+.segmented button.active,.source-tabs button.active{background:var(--ed-yellow);color:var(--ed-ink);font-weight:900;box-shadow:none}
+.item-card,.item-card:nth-of-type(n){
+  padding:21px;background:#fff;border:2px solid var(--ed-ink);border-left:2px solid var(--ed-ink);
+  border-radius:15px;box-shadow:none;outline:0;overflow:hidden
+}
+.item-card:nth-of-type(4n+1){background:#FFF9E9}.item-card:nth-of-type(4n+2){background:#F2F8FB}.item-card:nth-of-type(4n+3){background:#FFF4F1}.item-card:nth-of-type(4n+4){background:#fff}
+.jp-main{color:var(--ed-ink)}.meaning,.item-note{color:var(--ed-muted)}
+.item-note{border-top:1px solid var(--ed-ink)}
+.pattern-example{background:#FFF0B8;border:1px solid var(--ed-ink);border-radius:10px}
+.original,.corrected{border:1px solid var(--ed-ink);border-radius:10px;color:var(--ed-ink)}
+.original{background:#F5D8D3}.corrected{background:#DDEEF7}
+
+/* Growth, history and review */
+.progress-card{background:var(--ed-yellow);border:2px solid var(--ed-ink);border-radius:18px;color:var(--ed-ink);box-shadow:6px 6px 0 rgba(37,37,37,.12)}
+.progress-card .tiny-label,.progress-card h2,.progress-card p{color:var(--ed-ink)!important}
+.progress-card h2{font-family:Arial,sans-serif;font-weight:900}
+body[data-page="me"] .page>section.card:not(.progress-card){border:2px solid var(--ed-ink);background:#fff;box-shadow:none}
+.history-row{border-bottom:1px solid var(--ed-ink)}
+.history-date{background:var(--ed-blue);border:1px solid var(--ed-ink);border-radius:9px;color:var(--ed-ink)}
+.review-card{background:#fff;border:2px solid var(--ed-ink);box-shadow:5px 5px 0 rgba(37,37,37,.1)}
+.review-options button{background:#fff;border:1px solid var(--ed-ink);border-radius:9px;color:var(--ed-ink)}
+.review-options button:nth-child(1){background:#F5D8D3}.review-options button:nth-child(2){background:#FFF0B8}.review-options button:nth-child(3){background:#DDEEF7}
+.empty{background:#fff;border:2px solid var(--ed-ink);box-shadow:none}.empty-mark{background:var(--ed-yellow);border:2px solid var(--ed-ink);color:var(--ed-ink)}
+.reflection,.suggestion{border:2px solid var(--ed-ink);border-left:2px solid var(--ed-ink);box-shadow:none}.reflection{background:#F5D8D3}.suggestion{background:#DDEEF7}
+
+/* Modal and utility surfaces */
+.modal-backdrop{background:rgba(37,37,37,.48);backdrop-filter:none}
+.modal{background:var(--ed-paper);border:2px solid var(--ed-ink);border-radius:18px 18px 0 0;box-shadow:none}
+.modal-handle{background:var(--ed-ink)}.modal-head{padding-bottom:11px;border-bottom:2px solid var(--ed-ink)}
+.modal-head h2{font-family:Arial,"Hiragino Kaku Gothic ProN",sans-serif;font-weight:900;color:var(--ed-ink)}
+.close-btn{background:#fff;border:1px solid var(--ed-ink);color:var(--ed-ink)}
+.lifeline-library button{background:#fff;border:1px solid var(--ed-ink);border-radius:10px;color:var(--ed-ink)}
+.lifeline-library button:nth-child(3n+1){background:#FFF0B8}.lifeline-library button:nth-child(3n+2){background:#DDEEF7}.lifeline-library button:nth-child(3n){background:#F5D8D3}
+.lifeline-library b{color:var(--ed-ink)}
+.floating-import{background:var(--ed-yellow);border:2px solid var(--ed-ink);color:var(--ed-ink);box-shadow:4px 4px 0 rgba(37,37,37,.14)}
+.toast{background:var(--ed-ink);border:1px solid #fff;color:#fff}
+
+@media(min-width:800px){.modal{border-radius:18px}}
+@media(max-width:620px){
+  .live-hero{min-height:188px;padding:27px}.live-hero h1{font-size:30px}.live-hero p{max-width:100%}
+  .live-config,.live-standard{padding:20px}.choice-grid button{min-height:54px}
+  .item-card,.item-card:nth-of-type(n){padding:18px;border-width:2px}
+  .phrase-summary{gap:6px}.phrase-summary div{padding:13px 5px}
+}
