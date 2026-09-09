@@ -107,7 +107,7 @@ let reports = load(STORAGE_KEY, []);
 let state = load(STATE_KEY, { savedWords: [], savedPatterns: [], masteredWords: [], masteredErrors: [] });
 state={
   savedWords:[],savedPatterns:[],savedPhrases:[],masteredWords:[],masteredErrors:[],masteredPhrases:[],masteredPatterns:[],
-  introducedHandActions:[],
+  introducedHandActions:[],shadowingProgress:{},
   ...state
 };
 let currentTab = "home";
@@ -137,6 +137,7 @@ let recordingChunks = [];
 let playbackUrl = "";
 let handLearningQueue = [];
 let handLearningIndex = 0;
+let shadowingIndex = -1;
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -157,7 +158,9 @@ const furigana = {
   "念のため":"ねんのため","通りかか":"とおりかか","見かけ":"みかけ","引っかか":"ひっかか","聞き取":"ききと",
   "出し忘":"だしわす","準備":"じゅんび","症状":"しょうじょう","副作用":"ふくさよう","本人":"ほんにん",
   "参加":"さんか","予定":"よてい","変更":"へんこう","説明":"せつめい","可能性":"かのうせい","判断":"はんだん",
-  "必要":"ひつよう","種類":"しゅるい","順番":"じゅんばん","最初":"さいしょ","最後":"さいご","自然":"しぜん","表現":"ひょうげん"
+  "必要":"ひつよう","種類":"しゅるい","順番":"じゅんばん","最初":"さいしょ","最後":"さいご","自然":"しぜん","表現":"ひょうげん",
+  "午前中":"ごぜんちゅう","食欲":"しょくよく","着替":"きが","夕方":"ゆうがた","簡単":"かんたん","家族":"かぞく",
+  "週末":"しゅうまつ","習い事":"ならいごと","終わ":"おわ","過ご":"すご","気分":"きぶん","続く":"つづく","疲れ":"つかれ","特に":"とくに","元気":"げんき"
 };
 function jp(value="") {
   let out=esc(value),slots=[];
@@ -234,6 +237,10 @@ function go(tab) {
   currentTab = tab; listFilter = "all"; render();
 }
 function startDailyTraining(){speakingMode="daily";go("speaking")}
+function startDailyShadowing(){speakingMode="shadowing";go("speaking")}
+function speakingModeTabs(active){
+  return `<div class="speaking-mode-tabs"><button class="${active==="daily"?"active":""}" onclick="setSpeakingMode('daily')">今日安排</button><button class="${active==="shadowing"?"active":""}" onclick="setSpeakingMode('shadowing')">跟读</button><button class="${active==="scene"?"active":""}" onclick="setSpeakingMode('scene')">场景</button><button class="${active==="reflex"?"active":""}" onclick="setSpeakingMode('reflex')">反射</button></div>`;
+}
 
 function dailySpeakingItems() {
   const imported = reports.flatMap((r,ri)=>(r.stuckItems||[]).map((x,xi)=>({
@@ -382,7 +389,7 @@ function renderDaily(){
   const groupCounts=session.items.reduce((m,x)=>(m[x.kind]=(m[x.kind]||0)+1,m),{});
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日训练</h1><p class="page-subtitle">基础反射、真实场景和历史卡点已经混合排好。</p></div><span class="daily-count">${completed}/${session.items.length}</span></div>
-    <div class="speaking-mode-tabs"><button class="active" onclick="setSpeakingMode('daily')">今日安排</button><button onclick="setSpeakingMode('scene')">场景专项</button><button onclick="setSpeakingMode('reflex')">反射专项</button></div>
+    ${speakingModeTabs("daily")}
     <div class="daily-goal-row"><span>今天练习量</span><div>${[10,15,20].map(n=>`<button class="${state.dailyGoal===n?"active":""}" onclick="setDailyGoal(${n})">${n}题</button>`).join("")}</div></div>
     <div class="daily-progress"><i style="width:${Math.round(completed/session.items.length*100)}%"></i></div>
     <div class="daily-mix-strip"><span>基础反射 ${groupCounts.reflex||0}</span><span>场景 ${groupCounts.scene||0}</span><span>历史纠错 ${groupCounts.repair||0}</span></div>
@@ -420,6 +427,7 @@ function rateDaily(rating){
 
 function renderSpeaking() {
   if(speakingMode==="daily") return renderDaily();
+  if(speakingMode==="shadowing") return renderShadowing();
   if(speakingMode==="reflex") return renderReflex();
   state.speakingRatings = state.speakingRatings || {};
   const items=dailySpeakingItems();
@@ -429,7 +437,7 @@ function renderSpeaking() {
   const rating=state.speakingRatings[p.id];
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">意思说清楚、没有硬伤、卡住后能继续，就算通过。</p></div><span class="daily-count">${completed}/10</span></div>
-    <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('daily')">今日安排</button><button class="active" onclick="setSpeakingMode('scene')">场景专项</button><button onclick="setSpeakingMode('reflex')">反射专项</button></div>
+    ${speakingModeTabs("scene")}
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
     <section class="card speaking-card">
       <div class="speaking-meta"><span>${esc(p.group)}</span><b>${speakingIndex+1} / ${items.length}</b></div>
@@ -471,7 +479,7 @@ function renderReflex(){
   const categories=[...new Set(reflexDrills.map(x=>x.category))];
   document.getElementById("app").innerHTML=`<main class="page speaking-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日开口</h1><p class="page-subtitle">不背大长句，把基础结构练成不用思考的口腔反射。</p></div><span class="daily-count">${completed}/10</span></div>
-    <div class="speaking-mode-tabs"><button onclick="setSpeakingMode('daily')">今日安排</button><button onclick="setSpeakingMode('scene')">场景专项</button><button class="active" onclick="setSpeakingMode('reflex')">反射专项</button></div>
+    ${speakingModeTabs("reflex")}
     <div class="daily-progress"><i style="width:${completed*10}%"></i></div>
     <div class="reflex-trail" aria-label="本轮进度">${items.map((item,i)=>`<span class="reflex-sticker ${reflexRoundAnswered.has(item.id)?"done":""} ${i===reflexIndex?"current":""}">${i+1}</span>`).join("")}</div>
     <section class="card reflex-card">
@@ -486,6 +494,35 @@ function renderReflex(){
   </main>`;
 }
 function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;dailyRevealed=false;renderSpeaking()}
+
+function todayShadowingIndex(){return stableHash(localDateISO())%shadowingPassages.length;}
+function currentShadowing(){
+  if(shadowingIndex<0)shadowingIndex=todayShadowingIndex();
+  return shadowingPassages[shadowingIndex];
+}
+function renderShadowing(){
+  const passage=currentShadowing(),progress=state.shadowingProgress?.[passage.id],done=progress?.lastDate===localDateISO();
+  document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">今日跟读</h1><p class="page-subtitle">先听懂，再跟读。这里不测试，也不评分。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
+    ${speakingModeTabs("shadowing")}
+    <section class="card shadowing-card">
+      <div class="speaking-meta"><span>${esc(passage.situation)}</span><b>${done?"今天已完成":"约30秒"}</b></div>
+      <h2>${esc(passage.title)}</h2>
+      <div class="shadowing-text">${passage.sentences.map(sentence=>`<span>${jp(sentence[0])}</span>`).join("")}</div>
+      <div class="shadowing-audio"><button class="primary" onclick='speakAtRate(${JSON.stringify(passage.text)},.78)'>${uiIcon("play")}慢速听整段</button><button class="secondary" onclick='speakAtRate(${JSON.stringify(passage.text)},.92)'>自然速度</button></div>
+    </section>
+    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence[0])}</b><small>${esc(sentence[1])}</small></div><button class="mini-btn" onclick='speakAtRate(${JSON.stringify(sentence[0])},.84)'>听这句</button></article>`).join("")}</section>
+    <button class="${done?"secondary":"primary"} full shadowing-complete" onclick="completeShadowing()">${done?"✓ 今天已经跟读过":"我已经跟读一遍"}</button>
+    <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="primary" onclick="moveShadowing(1)">下一篇</button></div>
+  </main>`;
+}
+function moveShadowing(step){shadowingIndex=(shadowingIndex+step+shadowingPassages.length)%shadowingPassages.length;renderShadowing();}
+function completeShadowing(){
+  const passage=currentShadowing();state.shadowingProgress=state.shadowingProgress||{};
+  const previous=state.shadowingProgress[passage.id]||{};
+  state.shadowingProgress[passage.id]={completed:true,lastDate:localDateISO(),count:(previous.count||0)+1};
+  persist();renderShadowing();toast("已记录这次跟读");
+}
 function revealReflex(){reflexRevealed=true;renderReflex()}
 function moveReflex(step){reflexIndex=(reflexIndex+step+dailyReflexItems().length)%dailyReflexItems().length;reflexRevealed=false;renderReflex()}
 function rateReflex(rating){
@@ -812,6 +849,7 @@ function renderHome() {
   document.getElementById("app").innerHTML = `<main class="page">
     <header class="topbar workspace-head"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>我的日语工作台</h1></div><div class="header-badges"><span>🔥 ${reports.length}</span><span>⭐ ${words.length + patterns.length}</span><div class="avatar">日</div></div></header>
     <div class="date-line"><span class="dot"></span>已整理 ${reports.length} 次练习 · 累计开口 ${totalMinutes} 分钟</div>
+    <section class="card shadowing-home" onclick="startDailyShadowing()"><div><span class="tiny-label">TODAY'S SHADOWING</span><h2>先跟读一段真实生活</h2><p>${esc(shadowingPassages[todayShadowingIndex()].title)} · 约30秒，不测试</p></div><button class="primary">开始跟读</button></section>
     <section class="card daily-start" onclick="startDailyTraining()">
       <div><span class="tiny-label">TODAY'S SPEAKING</span><h2>今天开口${dailyStats.total}次</h2><p>基础反射、生活场景和历史卡点已经自动排好。</p><div class="daily-home-progress"><i style="width:${Math.round(dailyStats.completed/Math.max(1,dailyStats.total)*100)}%"></i></div><small>${dailyStats.completed} / ${dailyStats.total} 已完成</small></div>
       <button class="primary">开始训练</button>
@@ -963,10 +1001,13 @@ function toggleSaved(type,id) {
   persist(); render();
 }
 function speak(text) {
+  speakAtRate(text,.86);
+}
+function speakAtRate(text,rate=.86) {
   if (!("speechSynthesis" in window)) return toast("当前浏览器不支持朗读");
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text.replace(/（.*?）/g,""));
-  utterance.lang = "ja-JP"; utterance.rate = .86;
+  utterance.lang = "ja-JP"; utterance.rate = rate;
   speechSynthesis.speak(utterance);
 }
 
