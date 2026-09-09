@@ -1,8 +1,17 @@
+// Single import source for the existing 跟读 tab. Add future items to this array only.
+// Required shape: id, title, category, passage, sentences, meaningCues, expressions.
 const shadowingPassages = [
   {
     id:"real-day-morning",
     title:"送完孩子以后的上午",
+    category:"日常作息",
     situation:"说说自己平时上午怎么过",
+    meaningCues:["起床后准备早餐","送孩子上学后回家","有时准备饭，有时看电视","上午通常不去购物","商店开门比较晚"],
+    expressions:[
+      {japanese:"朝起きたら、まず～",chinese:"早上起来后，先……"},
+      {japanese:"～こともあるし、～こともあります",chinese:"有时……，有时也……"},
+      {japanese:"あまり～には行きません",chinese:"通常不怎么去……"}
+    ],
     sentences:[
       ["朝起きたら、まず朝ごはんを用意します。","早上起床后，我先准备早饭。"],
       ["それから子どもを学校まで送って、家に帰ります。","然后送孩子去学校，再回家。"],
@@ -14,7 +23,14 @@ const shadowingPassages = [
   {
     id:"real-breakfast",
     title:"孩子早上吃得很少",
+    category:"家庭生活",
     situation:"向别人解释孩子的早餐习惯",
+    meaningCues:["孩子早上没什么食欲","早餐每天吃的量不一样","学校十点半有点心","所以不会勉强多吃","午饭晚饭吃得不错"],
+    expressions:[
+      {japanese:"～日もあれば、～日もあります",chinese:"有……的日子，也有……的日子"},
+      {japanese:"無理に～させていません",chinese:"没有勉强让……"},
+      {japanese:"それでいいかなと思っています",chinese:"我觉得这样也可以"}
+    ],
     sentences:[
       ["うちの子は、朝はあまり食欲がありません。","我家孩子早上不太有食欲。"],
       ["おにぎりを半分食べる日もあれば、チキンを二つだけ食べる日もあります。","有时吃半个饭团，有时只吃两块鸡肉。"],
@@ -25,7 +41,14 @@ const shadowingPassages = [
   {
     id:"real-pickup",
     title:"放学后的安排",
+    category:"孩子学校",
     situation:"说说接孩子和课外活动",
+    meaningCues:["下午去学校接孩子","有时回家，有时去课外活动","有安排时会有点忙","孩子喜欢运动","回家后先换衣服休息"],
+    expressions:[
+      {japanese:"そのまま家に帰る",chinese:"就这样直接回家"},
+      {japanese:"～日もありますが、～日もあります",chinese:"有时……，也有时……"},
+      {japanese:"家に着いたら、まず～",chinese:"到家以后，先……"}
+    ],
     sentences:[
       ["午後は、学校まで子どもを迎えに行きます。","下午我去学校接孩子。"],
       ["そのまま家に帰る日もありますが、サッカーやほかの習い事に行く日もあります。","有时直接回家，有时去足球或其他课外活动。"],
@@ -36,7 +59,14 @@ const shadowingPassages = [
   {
     id:"real-dinner",
     title:"傍晚准备晚饭",
+    category:"日常作息",
     situation:"描述每天做饭的节奏",
+    meaningCues:["傍晚开始准备晚饭","考虑家人容易吃的东西","准备肉和蔬菜","没时间就做简单的","不会勉强自己每天认真做"],
+    expressions:[
+      {japanese:"そろそろ～を始めます",chinese:"差不多开始……"},
+      {japanese:"～ながら、～します",chinese:"一边……，一边……"},
+      {japanese:"無理はしません",chinese:"不会勉强自己"}
+    ],
     sentences:[
       ["夕方になると、そろそろ夜ごはんの準備を始めます。","到了傍晚，我差不多就开始准备晚饭。"],
       ["家族が食べやすいものを考えながら、肉や野菜を用意します。","我一边考虑家人容易吃的东西，一边准备肉和蔬菜。"],
@@ -47,7 +77,14 @@ const shadowingPassages = [
   {
     id:"real-weekend-football",
     title:"周末去踢足球",
+    category:"周末安排",
     situation:"和别人聊孩子的周末",
+    meaningCues:["周末常有孩子的足球活动","开始时间每天不同","在附近看着等结束","没安排时就在家休息"],
+    expressions:[
+      {japanese:"～ことが多いです",chinese:"经常……"},
+      {japanese:"～日もあれば、～日もあります",chinese:"有……的日子，也有……的日子"},
+      {japanese:"家でゆっくり過ごします",chinese:"在家悠闲地度过"}
+    ],
     sentences:[
       ["週末は、子どものサッカーが入っていることが多いです。","周末经常有孩子的足球活动。"],
       ["朝から行く日もあれば、昼前に始まる日もあります。","有时早上去，有时临近中午才开始。"],
@@ -58,7 +95,14 @@ const shadowingPassages = [
   {
     id:"real-lunch-friends",
     title:"和朋友吃午饭",
+    category:"朋友聊天",
     situation:"自然地介绍自己的社交安排",
+    meaningCues:["送完孩子后偶尔和朋友吃午饭","聊学校和最近的事","时间过得很快","聊完心情很舒畅","也需要独处的日子"],
+    expressions:[
+      {japanese:"～こともあります",chinese:"有时也会……"},
+      {japanese:"あっという間に過ぎます",chinese:"转眼间就过去了"},
+      {japanese:"一人で過ごす日も必要です",chinese:"也需要独处的日子"}
+    ],
     sentences:[
       ["子どもを送ったあと、友だちとランチに行くこともあります。","送完孩子后，我有时会和朋友去吃午饭。"],
       ["学校のことや、最近あったことを話していると、時間があっという間に過ぎます。","聊学校和最近发生的事情时，时间一下就过去了。"],
@@ -69,7 +113,14 @@ const shadowingPassages = [
   {
     id:"real-plan-change",
     title:"临时改变计划",
+    category:"计划变化",
     situation:"解释今天为什么没有按原计划做",
+    meaningCues:["本来打算出门","早上临时改变计划","有点累，家里也有事情","上午在家，下午才出去","没按计划也不太在意"],
+    expressions:[
+      {japanese:"～つもりでしたが、～",chinese:"本来打算……，但是……"},
+      {japanese:"結局、～",chinese:"结果……"},
+      {japanese:"～なくても、あまり気にしません",chinese:"即使没有……，也不太在意"}
+    ],
     sentences:[
       ["今日は出かけるつもりでしたが、朝になって予定を変えました。","今天本来打算出门，不过早上临时改了计划。"],
       ["少し疲れていたし、家でやりたいことも残っていたからです。","因为有点累，而且家里也还有想做的事情。"],
@@ -80,7 +131,14 @@ const shadowingPassages = [
   {
     id:"real-tired-day",
     title:"今天有点累",
+    category:"身体状态",
     situation:"不勉强自己，用简单日语说明状态",
+    meaningCues:["从早上开始有点累","没有发生特别的事","就是提不起劲","只做能做的事","休息后应该会恢复"],
+    expressions:[
+      {japanese:"～わけではありませんが、～",chinese:"并不是……，不过……"},
+      {japanese:"できることだけやる",chinese:"只做能做的事"},
+      {japanese:"～ば、たぶん～と思います",chinese:"如果……，我想大概会……"}
+    ],
     sentences:[
       ["今日は朝から少し疲れています。","今天从早上开始就有点累。"],
       ["特に何かあったわけではありませんが、あまりやる気が出ません。","并没有发生什么特别的事，但就是提不起劲。"],
@@ -88,4 +146,7 @@ const shadowingPassages = [
       ["一日休めば、たぶんまた元気になると思います。","休息一天以后，我想大概又会恢复精神。"]
     ]
   }
-].map(item=>({...item,text:item.sentences.map(sentence=>sentence[0]).join("")}));
+].map(item=>{
+  const sentences=item.sentences.map(sentence=>Array.isArray(sentence)?{japanese:sentence[0],chinese:sentence[1]}:sentence);
+  return {...item,sentences,passage:item.passage||sentences.map(sentence=>sentence.japanese).join("")};
+});

@@ -107,7 +107,7 @@ let reports = load(STORAGE_KEY, []);
 let state = load(STATE_KEY, { savedWords: [], savedPatterns: [], masteredWords: [], masteredErrors: [] });
 state={
   savedWords:[],savedPatterns:[],savedPhrases:[],masteredWords:[],masteredErrors:[],masteredPhrases:[],masteredPatterns:[],
-  introducedHandActions:[],shadowingProgress:{},
+  introducedHandActions:[],shadowingProgress:{},shadowingTrainingExpressions:[],
   ...state
 };
 let currentTab = "home";
@@ -138,6 +138,8 @@ let playbackUrl = "";
 let handLearningQueue = [];
 let handLearningIndex = 0;
 let shadowingIndex = -1;
+let shadowingPhase = "read";
+let shadowingExpressionSelection = new Set();
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -237,7 +239,7 @@ function go(tab) {
   currentTab = tab; listFilter = "all"; render();
 }
 function startDailyTraining(){speakingMode="daily";go("speaking")}
-function startDailyShadowing(){speakingMode="shadowing";go("speaking")}
+function startDailyShadowing(){speakingMode="shadowing";resetShadowingStep();go("speaking")}
 function speakingModeTabs(active){
   return `<div class="speaking-mode-tabs"><button class="${active==="daily"?"active":""}" onclick="setSpeakingMode('daily')">今日安排</button><button class="${active==="shadowing"?"active":""}" onclick="setSpeakingMode('shadowing')">跟读</button><button class="${active==="scene"?"active":""}" onclick="setSpeakingMode('scene')">场景</button><button class="${active==="reflex"?"active":""}" onclick="setSpeakingMode('reflex')">反射</button></div>`;
 }
@@ -330,7 +332,11 @@ function dailyPracticePool(){
     id:`error:${stableHash(x.id)}`,kind:"repair",type:x.type||"真实纠错",
     prompt:`把这句话重新说成简单正确的日语：${x.original}`,answer:x.corrected,note:x.note||"",lifelines:[]
   }));
-  return {reflex,scene,repair:[...imported,...errors]};
+  const shadowingExpressions=(state.shadowingTrainingExpressions||[]).map(x=>({
+    id:`shadowing-expression:${x.id}`,kind:"repair",type:"跟读表达",prompt:x.chinese,answer:x.japanese,
+    note:`来自跟读「${x.sourceTitle}」`,lifelines:[]
+  }));
+  return {reflex,scene,repair:[...shadowingExpressions,...imported,...errors]};
 }
 function selectDailyGroup(items,count,seed,recent){
   state.practiceRatings=state.practiceRatings||{};
@@ -493,35 +499,82 @@ function renderReflex(){
     <section class="card reflex-overview">${categories.map(category=>`<div><b>${reflexDrills.filter(x=>x.category===category).length}</b><span>${esc(category)}</span></div>`).join("")}</section>
   </main>`;
 }
-function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;dailyRevealed=false;renderSpeaking()}
+function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;dailyRevealed=false;if(mode==="shadowing")resetShadowingStep();renderSpeaking()}
 
 function todayShadowingIndex(){return stableHash(localDateISO())%shadowingPassages.length;}
 function currentShadowing(){
   if(shadowingIndex<0)shadowingIndex=todayShadowingIndex();
   return shadowingPassages[shadowingIndex];
 }
+function resetShadowingStep(){shadowingPhase="read";shadowingExpressionSelection=new Set();}
 function renderShadowing(){
-  const passage=currentShadowing(),progress=state.shadowingProgress?.[passage.id],done=progress?.lastDate===localDateISO();
+  const passage=currentShadowing(),progress=state.shadowingProgress?.[passage.id],familiar=Boolean(progress?.familiar);
+  if(shadowingPhase==="reconstruct")return renderShadowingReconstruction(passage);
+  if(shadowingPhase==="expressions")return renderShadowingExpressions(passage);
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日跟读</h1><p class="page-subtitle">先听懂，再跟读。这里不测试，也不评分。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
     ${speakingModeTabs("shadowing")}
     <section class="card shadowing-card">
-      <div class="speaking-meta"><span>${esc(passage.situation)}</span><b>${done?"今天已完成":"约30秒"}</b></div>
+      <div class="speaking-meta"><span>${esc(passage.situation)}</span><b>${familiar?"已经熟悉":"约30秒"}</b></div>
       <h2>${esc(passage.title)}</h2>
-      <div class="shadowing-text">${passage.sentences.map(sentence=>`<span>${jp(sentence[0])}</span>`).join("")}</div>
-      <div class="shadowing-audio"><button class="primary" onclick='speakAtRate(${JSON.stringify(passage.text)},.78)'>${uiIcon("play")}慢速听整段</button><button class="secondary" onclick='speakAtRate(${JSON.stringify(passage.text)},.92)'>自然速度</button></div>
+      <div class="shadowing-text">${passage.sentences.map(sentence=>`<span>${jp(sentence.japanese)}</span>`).join("")}</div>
+      <div class="shadowing-audio"><button class="primary" onclick='speakAtRate(${JSON.stringify(passage.passage)},.78)'>${uiIcon("play")}慢速听整段</button><button class="secondary" onclick='speakAtRate(${JSON.stringify(passage.passage)},.92)'>自然速度</button></div>
     </section>
-    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence[0])}</b><small>${esc(sentence[1])}</small></div><button class="mini-btn" onclick='speakAtRate(${JSON.stringify(sentence[0])},.84)'>听这句</button></article>`).join("")}</section>
-    <button class="${done?"secondary":"primary"} full shadowing-complete" onclick="completeShadowing()">${done?"✓ 今天已经跟读过":"我已经跟读一遍"}</button>
+    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick='speakAtRate(${JSON.stringify(sentence.japanese)},.84)'>听这句</button></article>`).join("")}</section>
+    <button class="primary full shadowing-complete" onclick="completeShadowing()">我已经跟读一遍</button>
     <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="primary" onclick="moveShadowing(1)">下一篇</button></div>
   </main>`;
 }
-function moveShadowing(step){shadowingIndex=(shadowingIndex+step+shadowingPassages.length)%shadowingPassages.length;renderShadowing();}
+function renderShadowingReconstruction(passage){
+  document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">跟读</h1><p class="page-subtitle">按意思重新说，不需要背原句。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
+    ${speakingModeTabs("shadowing")}
+    <section class="card shadowing-card reconstruction-card"><div class="speaking-meta"><span>语义重述</span><b>不评分</b></div><h2>${esc(passage.title)}</h2>
+      <p class="reconstruction-note">只看下面的意思提示，用你自己的日语把内容再说一遍。说法不同完全没关系。</p>
+      <ol class="meaning-cues">${passage.meaningCues.slice(0,5).map(cue=>`<li>${esc(cue)}</li>`).join("")}</ol>
+    </section>
+    <button class="primary full shadowing-complete" onclick="confirmShadowingFamiliarity()">这个我开始熟悉了</button>
+    <button class="secondary full shadowing-back" onclick="resetShadowingStep();renderShadowing()">返回跟读内容</button>
+  </main>`;
+}
+function renderShadowingExpressions(passage){
+  const addedIds=new Set((state.shadowingTrainingExpressions||[]).map(x=>x.id));
+  document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">跟读</h1><p class="page-subtitle">只选择以后真正想拿来开口的表达。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
+    ${speakingModeTabs("shadowing")}
+    <section class="card shadowing-card expression-picker"><div class="speaking-meta"><span>可迁移表达</span><b>手动选择</b></div><h2>${esc(passage.title)}</h2>
+      <p class="reconstruction-note">整段不会进入训练。只有你选中的表达会进入现有今日训练和复习安排。</p>
+      <div class="shadowing-expressions">${passage.expressions.map((expression,index)=>{
+        const id=`${passage.id}:${index+1}`,added=addedIds.has(id),selected=shadowingExpressionSelection.has(id);
+        return `<button class="${selected||added?"active":""}" ${added?"disabled":""} onclick="toggleShadowingExpression('${id}')"><span>${added?"已加入":selected?"已选择":"选择"}</span><b>${jp(expression.japanese)}</b><small>${esc(expression.chinese)}</small></button>`;
+      }).join("")}</div>
+    </section>
+    <button class="primary full shadowing-complete" onclick="addSelectedShadowingExpressions()">把选中的加入今日训练</button>
+    <button class="secondary full shadowing-back" onclick="resetShadowingStep();renderShadowing()">暂时不添加</button>
+  </main>`;
+}
+function moveShadowing(step){shadowingIndex=(shadowingIndex+step+shadowingPassages.length)%shadowingPassages.length;resetShadowingStep();renderShadowing();}
 function completeShadowing(){
-  const passage=currentShadowing();state.shadowingProgress=state.shadowingProgress||{};
-  const previous=state.shadowingProgress[passage.id]||{};
-  state.shadowingProgress[passage.id]={completed:true,lastDate:localDateISO(),count:(previous.count||0)+1};
-  persist();renderShadowing();toast("已记录这次跟读");
+  shadowingPhase="reconstruct";renderShadowing();
+}
+function confirmShadowingFamiliarity(){
+  const passage=currentShadowing(),previous=state.shadowingProgress?.[passage.id]||{};
+  state.shadowingProgress=state.shadowingProgress||{};
+  state.shadowingProgress[passage.id]={...previous,familiar:true,lastDate:localDateISO(),count:(previous.count||0)+1};
+  persist();shadowingPhase="expressions";renderShadowing();
+}
+function toggleShadowingExpression(id){
+  if(shadowingExpressionSelection.has(id))shadowingExpressionSelection.delete(id);else shadowingExpressionSelection.add(id);
+  renderShadowing();
+}
+function addSelectedShadowingExpressions(){
+  if(!shadowingExpressionSelection.size){toast("请先选择要加入的表达");return;}
+  const passage=currentShadowing();state.shadowingTrainingExpressions=state.shadowingTrainingExpressions||[];
+  passage.expressions.forEach((expression,index)=>{
+    const id=`${passage.id}:${index+1}`;
+    if(shadowingExpressionSelection.has(id)&&!state.shadowingTrainingExpressions.some(x=>x.id===id))state.shadowingTrainingExpressions.push({id,sourcePassageId:passage.id,sourceTitle:passage.title,japanese:expression.japanese,chinese:expression.chinese});
+  });
+  refreshUnstartedDailySessions();shadowingExpressionSelection=new Set();renderShadowing();toast("选中的表达已加入今日训练");
 }
 function revealReflex(){reflexRevealed=true;renderReflex()}
 function moveReflex(step){reflexIndex=(reflexIndex+step+dailyReflexItems().length)%dailyReflexItems().length;reflexRevealed=false;renderReflex()}
