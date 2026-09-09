@@ -108,6 +108,7 @@ let state = load(STATE_KEY, { savedWords: [], savedPatterns: [], masteredWords: 
 state={
   savedWords:[],savedPatterns:[],savedPhrases:[],masteredWords:[],masteredErrors:[],masteredPhrases:[],masteredPatterns:[],
   introducedHandActions:[],shadowingProgress:{},shadowingTrainingExpressions:[],
+  shadowingManagedItems:[],shadowingOverrides:{},hiddenShadowingItems:[],
   ...state
 };
 let currentTab = "home";
@@ -501,10 +502,20 @@ function renderReflex(){
 }
 function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRevealed=false;dailyRevealed=false;if(mode==="shadowing")resetShadowingStep();renderSpeaking()}
 
-function todayShadowingIndex(){return stableHash(localDateISO())%shadowingPassages.length;}
+function allShadowingItems(){
+  const overrides=state.shadowingOverrides||{};
+  return [...shadowingPassages.map(item=>overrides[item.id]||item),...(state.shadowingManagedItems||[])];
+}
+function availableShadowingItems(){
+  const hidden=new Set(state.hiddenShadowingItems||[]),items=allShadowingItems().filter(item=>!hidden.has(item.id));
+  return items.length?items:shadowingPassages;
+}
+function todayShadowingIndex(){const items=availableShadowingItems();return stableHash(localDateISO())%items.length;}
 function currentShadowing(){
+  const items=availableShadowingItems();
   if(shadowingIndex<0)shadowingIndex=todayShadowingIndex();
-  return shadowingPassages[shadowingIndex];
+  if(shadowingIndex>=items.length)shadowingIndex=0;
+  return items[shadowingIndex];
 }
 function resetShadowingStep(){shadowingPhase="read";shadowingExpressionSelection=new Set();}
 function renderShadowing(){
@@ -512,7 +523,7 @@ function renderShadowing(){
   if(shadowingPhase==="reconstruct")return renderShadowingReconstruction(passage);
   if(shadowingPhase==="expressions")return renderShadowingExpressions(passage);
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
-    <div class="section-head speaking-top"><div><h1 class="page-title">今日跟读</h1><p class="page-subtitle">先听懂，再跟读。这里不测试，也不评分。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
+    <div class="section-head speaking-top"><div><h1 class="page-title">今日跟读</h1><p class="page-subtitle">先听懂，再跟读。这里不测试，也不评分。</p></div><div class="shadowing-tools"><button class="text-btn" onclick="openShadowingManager()">管理内容</button><span class="daily-count">${shadowingIndex+1}/${availableShadowingItems().length}</span></div></div>
     ${speakingModeTabs("shadowing")}
     <section class="card shadowing-card">
       <div class="speaking-meta"><span>${esc(passage.situation)}</span><b>${familiar?"已经熟悉":"约30秒"}</b></div>
@@ -527,7 +538,7 @@ function renderShadowing(){
 }
 function renderShadowingReconstruction(passage){
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
-    <div class="section-head speaking-top"><div><h1 class="page-title">跟读</h1><p class="page-subtitle">按意思重新说，不需要背原句。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
+    <div class="section-head speaking-top"><div><h1 class="page-title">跟读</h1><p class="page-subtitle">按意思重新说，不需要背原句。</p></div><span class="daily-count">${shadowingIndex+1}/${availableShadowingItems().length}</span></div>
     ${speakingModeTabs("shadowing")}
     <section class="card shadowing-card reconstruction-card"><div class="speaking-meta"><span>语义重述</span><b>不评分</b></div><h2>${esc(passage.title)}</h2>
       <p class="reconstruction-note">只看下面的意思提示，用你自己的日语把内容再说一遍。说法不同完全没关系。</p>
@@ -540,7 +551,7 @@ function renderShadowingReconstruction(passage){
 function renderShadowingExpressions(passage){
   const addedIds=new Set((state.shadowingTrainingExpressions||[]).map(x=>x.id));
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
-    <div class="section-head speaking-top"><div><h1 class="page-title">跟读</h1><p class="page-subtitle">只选择以后真正想拿来开口的表达。</p></div><span class="daily-count">${shadowingIndex+1}/${shadowingPassages.length}</span></div>
+    <div class="section-head speaking-top"><div><h1 class="page-title">跟读</h1><p class="page-subtitle">只选择以后真正想拿来开口的表达。</p></div><span class="daily-count">${shadowingIndex+1}/${availableShadowingItems().length}</span></div>
     ${speakingModeTabs("shadowing")}
     <section class="card shadowing-card expression-picker"><div class="speaking-meta"><span>可迁移表达</span><b>手动选择</b></div><h2>${esc(passage.title)}</h2>
       <p class="reconstruction-note">整段不会进入训练。只有你选中的表达会进入现有今日训练和复习安排。</p>
@@ -549,11 +560,11 @@ function renderShadowingExpressions(passage){
         return `<button class="${selected||added?"active":""}" ${added?"disabled":""} onclick="toggleShadowingExpression('${id}')"><span>${added?"已加入":selected?"已选择":"选择"}</span><b>${jp(expression.japanese)}</b><small>${esc(expression.chinese)}</small></button>`;
       }).join("")}</div>
     </section>
-    <button class="primary full shadowing-complete" onclick="addSelectedShadowingExpressions()">把选中的加入今日训练</button>
+    <button class="primary full shadowing-complete" onclick="addSelectedShadowingExpressions()">把选中的加入训练</button>
     <button class="secondary full shadowing-back" onclick="resetShadowingStep();renderShadowing()">暂时不添加</button>
   </main>`;
 }
-function moveShadowing(step){shadowingIndex=(shadowingIndex+step+shadowingPassages.length)%shadowingPassages.length;resetShadowingStep();renderShadowing();}
+function moveShadowing(step){const items=availableShadowingItems();shadowingIndex=(shadowingIndex+step+items.length)%items.length;resetShadowingStep();renderShadowing();}
 function completeShadowing(){
   shadowingPhase="reconstruct";renderShadowing();
 }
@@ -575,6 +586,94 @@ function addSelectedShadowingExpressions(){
     if(shadowingExpressionSelection.has(id)&&!state.shadowingTrainingExpressions.some(x=>x.id===id))state.shadowingTrainingExpressions.push({id,sourcePassageId:passage.id,sourceTitle:passage.title,japanese:expression.japanese,chinese:expression.chinese});
   });
   refreshUnstartedDailySessions();shadowingExpressionSelection=new Set();renderShadowing();toast("选中的表达已加入今日训练");
+}
+function shadowingExportItem(item){
+  return {id:item.id,title:item.title,category:item.category,passage:item.passage,sentences:item.sentences.map(x=>({japanese:x.japanese,chinese:x.chinese})),meaningCues:[...item.meaningCues],expressions:item.expressions.map(x=>({japanese:x.japanese,chinese:x.chinese}))};
+}
+function normalizeShadowingItem(item,fallback={}){
+  if(!item||typeof item!=="object"||Array.isArray(item))throw new Error("每条内容必须是一个 JSON 对象");
+  ["id","title","category","passage"].forEach(key=>{if(typeof item[key]!=="string"||!item[key].trim())throw new Error(`缺少或无效的 ${key}`);});
+  if(!/^[A-Za-z0-9_-]+$/.test(item.id))throw new Error("id 只能使用字母、数字、下划线和短横线");
+  if(!Array.isArray(item.sentences)||!item.sentences.length)throw new Error("sentences 必须是非空列表");
+  item.sentences.forEach((sentence,index)=>{
+    if(!sentence||typeof sentence.japanese!=="string"||!sentence.japanese.trim()||typeof sentence.chinese!=="string"||!sentence.chinese.trim())throw new Error(`sentences 第 ${index+1} 条格式不正确`);
+  });
+  if(!Array.isArray(item.meaningCues)||item.meaningCues.length<3||item.meaningCues.length>5||item.meaningCues.some(x=>typeof x!=="string"||!x.trim()))throw new Error("meaningCues 必须包含 3 至 5 条中文提示");
+  if(!Array.isArray(item.expressions))throw new Error("expressions 必须是列表");
+  item.expressions.forEach((expression,index)=>{
+    if(!expression||typeof expression.japanese!=="string"||!expression.japanese.trim()||typeof expression.chinese!=="string"||!expression.chinese.trim())throw new Error(`expressions 第 ${index+1} 条格式不正确`);
+  });
+  return {...shadowingExportItem(item),situation:typeof item.situation==="string"&&item.situation.trim()?item.situation:fallback.situation||item.category};
+}
+function shadowingIsBuiltIn(id){return shadowingPassages.some(item=>item.id===id);}
+function openShadowingManager(){
+  const hidden=new Set(state.hiddenShadowingItems||[]),custom=new Set((state.shadowingManagedItems||[]).map(x=>x.id));
+  document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal shadowing-manager">
+    <div class="modal-handle"></div><div class="modal-head"><h2>管理跟读内容</h2><button class="close-btn" onclick="closeModal()">×</button></div>
+    <p class="modal-copy">新增和修改只保存在当前浏览器。内置内容可以编辑或隐藏，自己导入的内容也可以删除。</p>
+    <div class="manager-actions"><button class="primary" onclick="openShadowingImporter()">导入 JSON</button><button class="secondary" onclick="exportShadowingContent()">导出全部备份</button></div>
+    <div class="shadowing-manager-list">${allShadowingItems().map(item=>`<article class="${hidden.has(item.id)?"hidden-item":""}"><div><b>${esc(item.title)}</b><small>${esc(item.category)} · ${custom.has(item.id)?"自己导入":"内置"}${hidden.has(item.id)?" · 已隐藏":""}</small></div><div><button class="mini-btn" onclick="openShadowingEditor('${item.id}')">编辑</button><button class="mini-btn" onclick="toggleShadowingHidden('${item.id}')">${hidden.has(item.id)?"显示":"隐藏"}</button>${custom.has(item.id)?`<button class="mini-btn danger" onclick="deleteShadowingItem('${item.id}')">删除</button>`:""}</div></article>`).join("")}</div>
+  </section></div>`;
+}
+function openShadowingImporter(){
+  document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal shadowing-manager">
+    <div class="modal-handle"></div><div class="modal-head"><h2>导入跟读内容</h2><button class="close-btn" onclick="closeModal()">×</button></div>
+    <p class="modal-copy">可粘贴一条 JSON 对象，或由多条内容组成的 JSON 数组。同 id 内容会更新。</p>
+    <textarea id="shadowing-json-input" placeholder='粘贴 { "id": ... } 或 [ { "id": ... } ]'></textarea><div id="shadowing-import-message" class="message"></div>
+    <div class="modal-actions"><button class="secondary" onclick="openShadowingManager()">返回</button><button class="primary" onclick="importShadowingContent()">导入内容</button></div>
+  </section></div>`;
+}
+function parseShadowingJSON(text){
+  const parsed=JSON.parse(text.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim()),items=Array.isArray(parsed)?parsed:[parsed];
+  if(!items.length)throw new Error("没有可导入的内容");
+  const normalized=items.map(item=>normalizeShadowingItem(item,shadowingPassages.find(x=>x.id===item?.id)));
+  if(new Set(normalized.map(x=>x.id)).size!==normalized.length)throw new Error("导入内容中存在重复 id");
+  return normalized;
+}
+function importShadowingContent(){
+  const input=document.getElementById("shadowing-json-input"),message=document.getElementById("shadowing-import-message");
+  try{
+    const incoming=parseShadowingJSON(input.value);state.shadowingOverrides=state.shadowingOverrides||{};state.shadowingManagedItems=state.shadowingManagedItems||[];
+    incoming.forEach(item=>{
+      if(shadowingIsBuiltIn(item.id))state.shadowingOverrides[item.id]=item;
+      else{const index=state.shadowingManagedItems.findIndex(x=>x.id===item.id);if(index>=0)state.shadowingManagedItems[index]=item;else state.shadowingManagedItems.push(item);}
+    });
+    state.hiddenShadowingItems=(state.hiddenShadowingItems||[]).filter(id=>!incoming.some(item=>item.id===id));persist();
+    const items=availableShadowingItems();shadowingIndex=Math.max(0,items.findIndex(x=>x.id===incoming[0].id));resetShadowingStep();closeModal();renderShadowing();toast(`已导入 ${incoming.length} 条跟读内容`);
+  }catch(error){message.textContent=`无法导入：${error.message}`;}
+}
+function openShadowingEditor(id){
+  const item=allShadowingItems().find(x=>x.id===id);if(!item)return;
+  document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal shadowing-manager">
+    <div class="modal-handle"></div><div class="modal-head"><h2>编辑跟读内容</h2><button class="close-btn" onclick="closeModal()">×</button></div>
+    <textarea id="shadowing-edit-input">${esc(JSON.stringify(shadowingExportItem(item),null,2))}</textarea><div id="shadowing-edit-message" class="message"></div>
+    <div class="modal-actions"><button class="secondary" onclick="openShadowingManager()">取消</button><button class="primary" onclick="saveShadowingEdit('${id}')">保存修改</button></div>
+  </section></div>`;
+}
+function saveShadowingEdit(id){
+  const message=document.getElementById("shadowing-edit-message");
+  try{
+    const parsed=JSON.parse(document.getElementById("shadowing-edit-input").value);if(Array.isArray(parsed))throw new Error("编辑时只能保存一条内容");
+    if(parsed.id!==id)throw new Error("编辑时不能修改 id");
+    const current=allShadowingItems().find(x=>x.id===id),item=normalizeShadowingItem(parsed,current);
+    if(shadowingIsBuiltIn(id)){state.shadowingOverrides=state.shadowingOverrides||{};state.shadowingOverrides[id]=item;}
+    else{const index=(state.shadowingManagedItems||[]).findIndex(x=>x.id===id);if(index<0)throw new Error("找不到这条内容");state.shadowingManagedItems[index]=item;}
+    persist();openShadowingManager();toast("跟读内容已更新");
+  }catch(error){message.textContent=`无法保存：${error.message}`;}
+}
+function toggleShadowingHidden(id){
+  const hidden=new Set(state.hiddenShadowingItems||[]),isHidden=hidden.has(id);
+  if(!isHidden&&availableShadowingItems().length<=1){toast("至少保留一条可用内容");return;}
+  if(isHidden)hidden.delete(id);else hidden.add(id);state.hiddenShadowingItems=[...hidden];shadowingIndex=-1;resetShadowingStep();persist();openShadowingManager();
+}
+function deleteShadowingItem(id){
+  if(shadowingIsBuiltIn(id))return;
+  if(!window.confirm("确定删除这条跟读内容吗？"))return;
+  state.shadowingManagedItems=(state.shadowingManagedItems||[]).filter(x=>x.id!==id);state.hiddenShadowingItems=(state.hiddenShadowingItems||[]).filter(x=>x!==id);shadowingIndex=-1;resetShadowingStep();persist();openShadowingManager();toast("跟读内容已删除");
+}
+function exportShadowingContent(){
+  const content=JSON.stringify(allShadowingItems().map(shadowingExportItem),null,2),url=URL.createObjectURL(new Blob([content],{type:"application/json"})),link=document.createElement("a");
+  link.href=url;link.download=`japanese-reset-shadowing-${localDateISO()}.json`;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);toast("跟读内容备份已导出");
 }
 function revealReflex(){reflexRevealed=true;renderReflex()}
 function moveReflex(step){reflexIndex=(reflexIndex+step+dailyReflexItems().length)%dailyReflexItems().length;reflexRevealed=false;renderReflex()}
@@ -902,7 +1001,7 @@ function renderHome() {
   document.getElementById("app").innerHTML = `<main class="page">
     <header class="topbar workspace-head"><div class="hello"><small>${todayText()} · 今日も少しだけ</small><h1>我的日语工作台</h1></div><div class="header-badges"><span>🔥 ${reports.length}</span><span>⭐ ${words.length + patterns.length}</span><div class="avatar">日</div></div></header>
     <div class="date-line"><span class="dot"></span>已整理 ${reports.length} 次练习 · 累计开口 ${totalMinutes} 分钟</div>
-    <section class="card shadowing-home" onclick="startDailyShadowing()"><div><span class="tiny-label">TODAY'S SHADOWING</span><h2>先跟读一段真实生活</h2><p>${esc(shadowingPassages[todayShadowingIndex()].title)} · 约30秒，不测试</p></div><button class="primary">开始跟读</button></section>
+    <section class="card shadowing-home" onclick="startDailyShadowing()"><div><span class="tiny-label">TODAY'S SHADOWING</span><h2>先跟读一段真实生活</h2><p>${esc(availableShadowingItems()[todayShadowingIndex()].title)} · 约30秒，不测试</p></div><button class="primary">开始跟读</button></section>
     <section class="card daily-start" onclick="startDailyTraining()">
       <div><span class="tiny-label">TODAY'S SPEAKING</span><h2>今天开口${dailyStats.total}次</h2><p>基础反射、生活场景和历史卡点已经自动排好。</p><div class="daily-home-progress"><i style="width:${Math.round(dailyStats.completed/Math.max(1,dailyStats.total)*100)}%"></i></div><small>${dailyStats.completed} / ${dailyStats.total} 已完成</small></div>
       <button class="primary">开始训练</button>
