@@ -504,7 +504,7 @@ function setSpeakingMode(mode){speakingMode=mode;speakingRevealed=false;reflexRe
 
 function allShadowingItems(){
   const overrides=state.shadowingOverrides||{};
-  return [...shadowingPassages.map(item=>overrides[item.id]||item),...(state.shadowingManagedItems||[])];
+  return [...shadowingPassages.map(item=>overrides[item.id]||{...item,duration:item.duration??30}),...(state.shadowingManagedItems||[])];
 }
 function availableShadowingItems(){
   const hidden=new Set(state.hiddenShadowingItems||[]),items=allShadowingItems().filter(item=>!hidden.has(item.id));
@@ -588,11 +588,13 @@ function addSelectedShadowingExpressions(){
   refreshUnstartedDailySessions();shadowingExpressionSelection=new Set();renderShadowing();toast("选中的表达已加入今日训练");
 }
 function shadowingExportItem(item){
-  return {id:item.id,title:item.title,category:item.category,passage:item.passage,sentences:item.sentences.map(x=>({japanese:x.japanese,chinese:x.chinese})),meaningCues:[...item.meaningCues],expressions:item.expressions.map(x=>({japanese:x.japanese,chinese:x.chinese}))};
+  return {id:item.id,title:item.title,category:item.category,duration:item.duration,passage:item.passage,sentences:item.sentences.map(x=>({japanese:x.japanese,chinese:x.chinese})),meaningCues:[...item.meaningCues],expressions:item.expressions.map(x=>({japanese:x.japanese,chinese:x.chinese}))};
 }
 function normalizeShadowingItem(item,fallback={}){
   if(!item||typeof item!=="object"||Array.isArray(item))throw new Error("每条内容必须是一个 JSON 对象");
   ["id","title","category","passage"].forEach(key=>{if(typeof item[key]!=="string"||!item[key].trim())throw new Error(`缺少或无效的 ${key}`);});
+  if(item.duration===undefined||item.duration===null||(typeof item.duration!=="number"&&typeof item.duration!=="string")||!String(item.duration).trim())throw new Error("缺少或无效的 duration");
+  if(typeof item.duration==="number"&&(!Number.isFinite(item.duration)||item.duration<=0))throw new Error("duration 必须大于 0");
   if(!/^[A-Za-z0-9_-]+$/.test(item.id))throw new Error("id 只能使用字母、数字、下划线和短横线");
   if(!Array.isArray(item.sentences)||!item.sentences.length)throw new Error("sentences 必须是非空列表");
   item.sentences.forEach((sentence,index)=>{
@@ -618,7 +620,7 @@ function openShadowingManager(){
 function openShadowingImporter(){
   document.getElementById("modal-root").innerHTML=`<div class="modal-backdrop" onclick="backdropClose(event)"><section class="modal shadowing-manager">
     <div class="modal-handle"></div><div class="modal-head"><h2>导入跟读内容</h2><button class="close-btn" onclick="closeModal()">×</button></div>
-    <p class="modal-copy">可粘贴一条 JSON 对象，或由多条内容组成的 JSON 数组。同 id 内容会更新。</p>
+    <p class="modal-copy">可粘贴一条 JSON 对象，或由多条内容组成的 JSON 数组。这里只读取跟读字段，不读取学习日报。</p>
     <textarea id="shadowing-json-input" placeholder='粘贴 { "id": ... } 或 [ { "id": ... } ]'></textarea><div id="shadowing-import-message" class="message"></div>
     <div class="modal-actions"><button class="secondary" onclick="openShadowingManager()">返回</button><button class="primary" onclick="importShadowingContent()">导入内容</button></div>
   </section></div>`;
