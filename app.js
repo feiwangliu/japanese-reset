@@ -537,7 +537,7 @@ function renderShadowing(){
     </section>
     <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick="playNaturalShadowingAudioByPosition('${passage.id}','sentence',${index})">听这句</button></article>`).join("")}</section>
     <button class="primary full shadowing-complete" onclick="completeShadowing()">我已经跟读一遍</button>
-    <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="primary" onclick="moveShadowing(1)">下一篇</button></div>
+    <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="secondary" onclick="moveShadowing(1)">下一篇</button></div>
   </main>`;
 }
 
