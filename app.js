@@ -141,6 +141,9 @@ let handLearningIndex = 0;
 let shadowingIndex = -1;
 let shadowingPhase = "read";
 let shadowingExpressionSelection = new Set();
+const NATURAL_TTS_PASSAGE_ID="real-breakfast";
+const NATURAL_TTS_CACHE_VERSION="gemini-3.1-flash-tts-preview:Achernar:v1";
+let naturalTtsBusy=false;
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -529,12 +532,68 @@ function renderShadowing(){
       <div class="speaking-meta"><span>${esc(passage.situation)}</span><b>${familiar?"已经熟悉":"约30秒"}</b></div>
       <h2>${esc(passage.title)}</h2>
       <div class="shadowing-text">${passage.sentences.map(sentence=>`<span>${jp(sentence.japanese)}</span>`).join("")}</div>
-      <div class="shadowing-audio"><button class="primary" onclick='speakAtRate(${JSON.stringify(passage.passage)},.78)'>${uiIcon("play")}慢速听整段</button><button class="secondary" onclick='speakAtRate(${JSON.stringify(passage.passage)},.92)'>自然速度</button></div>
+      <div class="shadowing-audio"><button class="primary" onclick='speakAtRate(${JSON.stringify(passage.passage)},.78)'>${uiIcon("play")}慢速听整段</button><button class="secondary" onclick='${passage.id===NATURAL_TTS_PASSAGE_ID?"playNaturalShadowingAudio(\"full\")":`speakAtRate(${JSON.stringify(passage.passage)},.92)`}'>自然速度</button></div>
+      ${passage.id===NATURAL_TTS_PASSAGE_ID?`<button class="mini-btn natural-tts-generate" data-natural-tts-generate onclick="generateNaturalShadowingAudio()">生成自然语音</button>`:""}
     </section>
-    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick='speakAtRate(${JSON.stringify(sentence.japanese)},.84)'>听这句</button></article>`).join("")}</section>
+    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick='${passage.id===NATURAL_TTS_PASSAGE_ID?`playNaturalShadowingAudio("sentence",${index})`:`speakAtRate(${JSON.stringify(sentence.japanese)},.84)`}'>听这句</button></article>`).join("")}</section>
     <button class="primary full shadowing-complete" onclick="completeShadowing()">我已经跟读一遍</button>
     <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="primary" onclick="moveShadowing(1)">下一篇</button></div>
   </main>`;
+  if(passage.id===NATURAL_TTS_PASSAGE_ID)refreshNaturalTtsButton();
+}
+
+function naturalTtsCacheKey(kind,index){return `${NATURAL_TTS_CACHE_VERSION}:${NATURAL_TTS_PASSAGE_ID}:${kind}${index===undefined?"":`:${index}`}`;}
+function openNaturalTtsDb(){
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open("japanese-reset-audio",1);
+    request.onupgradeneeded=()=>request.result.createObjectStore("clips");
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error);
+  });
+}
+async function naturalTtsCacheGet(key){
+  const db=await openNaturalTtsDb();
+  return new Promise((resolve,reject)=>{const tx=db.transaction("clips","readonly"),request=tx.objectStore("clips").get(key);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);tx.oncomplete=()=>db.close();});
+}
+async function naturalTtsCachePut(key,value){
+  const db=await openNaturalTtsDb();
+  return new Promise((resolve,reject)=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").put(value,key);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);});
+}
+function base64AudioBlob(base64,mimeType){
+  const bytes=atob(base64),data=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)data[i]=bytes.charCodeAt(i);return new Blob([data],{type:mimeType});
+}
+async function naturalTtsIsComplete(sentenceCount){
+  if(!("indexedDB" in window))return false;
+  const keys=[naturalTtsCacheKey("full"),...Array.from({length:sentenceCount},(_,index)=>naturalTtsCacheKey("sentence",index))];
+  const values=await Promise.all(keys.map(naturalTtsCacheGet));return values.every(value=>value instanceof Blob&&value.size>0);
+}
+async function refreshNaturalTtsButton(){
+  const button=document.querySelector("[data-natural-tts-generate]");if(!button)return;
+  try{const ready=await naturalTtsIsComplete(currentShadowing().sentences.length);button.textContent=ready?"自然语音已生成":"生成自然语音";button.disabled=ready||naturalTtsBusy;}catch{button.textContent="生成自然语音";button.disabled=naturalTtsBusy;}
+}
+async function generateNaturalShadowingAudio(){
+  const passage=currentShadowing();if(passage.id!==NATURAL_TTS_PASSAGE_ID||naturalTtsBusy)return;
+  if(!("indexedDB" in window))return toast("当前浏览器不支持语音缓存");
+  try{
+    if(await naturalTtsIsComplete(passage.sentences.length)){refreshNaturalTtsButton();return toast("自然语音已经生成");}
+    const endpoint=window.JAPANESE_RESET_TTS_ENDPOINT;if(!endpoint)throw new Error("自然语音服务尚未配置");
+    naturalTtsBusy=true;refreshNaturalTtsButton();
+    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passageId:NATURAL_TTS_PASSAGE_ID})});
+    const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||"生成失败");
+    if(result.version!==NATURAL_TTS_CACHE_VERSION||!result.full||!Array.isArray(result.sentences)||result.sentences.length!==passage.sentences.length)throw new Error("语音数据不完整");
+    const mimeType=result.mimeType||"audio/mpeg";
+    await naturalTtsCachePut(naturalTtsCacheKey("full"),base64AudioBlob(result.full,mimeType));
+    await Promise.all(result.sentences.map((audio,index)=>naturalTtsCachePut(naturalTtsCacheKey("sentence",index),base64AudioBlob(audio,mimeType))));
+    toast("自然语音已生成");
+  }catch(error){toast(error.message||"自然语音生成失败");}
+  finally{naturalTtsBusy=false;refreshNaturalTtsButton();}
+}
+async function playNaturalShadowingAudio(kind,index){
+  try{
+    const blob=await naturalTtsCacheGet(naturalTtsCacheKey(kind,index));if(!(blob instanceof Blob)||!blob.size)return toast("请先生成自然语音");
+    if("speechSynthesis" in window)speechSynthesis.cancel();
+    const url=URL.createObjectURL(blob),audio=new Audio(url);audio.onended=audio.onerror=()=>URL.revokeObjectURL(url);await audio.play();
+  }catch{return toast("自然语音播放失败");}
 }
 function renderShadowingReconstruction(passage){
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
