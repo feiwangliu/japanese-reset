@@ -141,9 +141,10 @@ let handLearningIndex = 0;
 let shadowingIndex = -1;
 let shadowingPhase = "read";
 let shadowingExpressionSelection = new Set();
-const NATURAL_TTS_PASSAGE_ID="real-breakfast";
 const NATURAL_TTS_CACHE_VERSION="gemini-3.1-flash-tts-preview:Achernar:v1";
-let naturalTtsBusy=false;
+const LEGACY_NATURAL_TTS_PASSAGE_ID="real-breakfast";
+const LEGACY_NATURAL_TTS_HASHES={full:"02db812a06ccca7688b407f33f649c558baaf64b1903fa759c74c86a63080c97",sentences:["a9227cc1220c188172d7afc708102669dce2778f6ee49afdd1ef6c7d4de4f35c","8fdbdf2a8bb4d4c0e82b40bc1ce5deee131e9d27dc1717dfe1f07cf4b99ce419","757d59dc02e6f31affccf2ab7870fb0554d1e61524b19b5e4e5ddb87b03eeb6b","f2475b244505a7a918c19404711e1875b054fd3a84564266f9e3e7aabd0308ca"]};
+let naturalTtsBatch=null;
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -532,21 +533,18 @@ function renderShadowing(){
       <div class="speaking-meta"><span>${esc(passage.situation)}</span><b>${familiar?"已经熟悉":"约30秒"}</b></div>
       <h2>${esc(passage.title)}</h2>
       <div class="shadowing-text">${passage.sentences.map(sentence=>`<span>${jp(sentence.japanese)}</span>`).join("")}</div>
-      <div class="shadowing-audio"><button class="primary" onclick='speakAtRate(${JSON.stringify(passage.passage)},.78)'>${uiIcon("play")}慢速听整段</button><button class="secondary" onclick='${passage.id===NATURAL_TTS_PASSAGE_ID?"playNaturalShadowingAudio(\"full\")":`speakAtRate(${JSON.stringify(passage.passage)},.92)`}'>自然速度</button></div>
-      ${passage.id===NATURAL_TTS_PASSAGE_ID?`<button class="mini-btn natural-tts-generate" data-natural-tts-generate onclick="generateNaturalShadowingAudio()">生成自然语音</button>`:""}
+      <div class="shadowing-audio"><button class="primary" onclick="playNaturalShadowingAudioByPosition('${passage.id}','full')">${uiIcon("play")}自然速度</button></div>
     </section>
-    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick='${passage.id===NATURAL_TTS_PASSAGE_ID?`playNaturalShadowingAudio("sentence",${index})`:`speakAtRate(${JSON.stringify(sentence.japanese)},.84)`}'>听这句</button></article>`).join("")}</section>
+    <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick="playNaturalShadowingAudioByPosition('${passage.id}','sentence',${index})">听这句</button></article>`).join("")}</section>
     <button class="primary full shadowing-complete" onclick="completeShadowing()">我已经跟读一遍</button>
     <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="primary" onclick="moveShadowing(1)">下一篇</button></div>
   </main>`;
-  if(passage.id===NATURAL_TTS_PASSAGE_ID)refreshNaturalTtsButton();
 }
 
-function naturalTtsCacheKey(kind,index){return `${NATURAL_TTS_CACHE_VERSION}:${NATURAL_TTS_PASSAGE_ID}:${kind}${index===undefined?"":`:${index}`}`;}
 function openNaturalTtsDb(){
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open("japanese-reset-audio",1);
-    request.onupgradeneeded=()=>request.result.createObjectStore("clips");
+    request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains("clips"))request.result.createObjectStore("clips");};
     request.onsuccess=()=>resolve(request.result);
     request.onerror=()=>reject(request.error);
   });
@@ -562,38 +560,80 @@ async function naturalTtsCachePut(key,value){
 function base64AudioBlob(base64,mimeType){
   const bytes=atob(base64),data=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)data[i]=bytes.charCodeAt(i);return new Blob([data],{type:mimeType});
 }
-async function naturalTtsIsComplete(sentenceCount){
-  if(!("indexedDB" in window))return false;
-  const keys=[naturalTtsCacheKey("full"),...Array.from({length:sentenceCount},(_,index)=>naturalTtsCacheKey("sentence",index))];
-  const values=await Promise.all(keys.map(naturalTtsCacheGet));return values.every(value=>value instanceof Blob&&value.size>0);
+async function naturalTtsTextHash(text){
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return [...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,"0")).join("");
 }
-async function refreshNaturalTtsButton(){
-  const button=document.querySelector("[data-natural-tts-generate]");if(!button)return;
-  try{const ready=await naturalTtsIsComplete(currentShadowing().sentences.length);button.textContent=ready?"自然语音已生成":"生成自然语音";button.disabled=ready||naturalTtsBusy;}catch{button.textContent="生成自然语音";button.disabled=naturalTtsBusy;}
+async function naturalTtsClipIdentity(passageId,kind,text){
+  const hash=await naturalTtsTextHash(text);return {clipId:`${kind}:${hash}`,cacheKey:`${NATURAL_TTS_CACHE_VERSION}:${passageId}:${kind}:${hash}`,hash,kind,text};
 }
-async function generateNaturalShadowingAudio(){
-  const passage=currentShadowing();if(passage.id!==NATURAL_TTS_PASSAGE_ID||naturalTtsBusy)return;
-  if(!("indexedDB" in window))return toast("当前浏览器不支持语音缓存");
+async function naturalTtsGetClip(passageId,kind,text){
+  const identity=await naturalTtsClipIdentity(passageId,kind,text),cached=await naturalTtsCacheGet(identity.cacheKey);
+  if(cached instanceof Blob&&cached.size)return {identity,blob:cached};
+  if(passageId!==LEGACY_NATURAL_TTS_PASSAGE_ID)return {identity};
+  const legacyIndex=kind==="sentence"?LEGACY_NATURAL_TTS_HASHES.sentences.indexOf(identity.hash):-1;
+  if(kind==="full"&&identity.hash!==LEGACY_NATURAL_TTS_HASHES.full)return {identity};
+  if(kind==="sentence"&&legacyIndex<0)return {identity};
+  const legacyKey=`${NATURAL_TTS_CACHE_VERSION}:${LEGACY_NATURAL_TTS_PASSAGE_ID}:${kind}${legacyIndex<0?"":`:${legacyIndex}`}`,legacy=await naturalTtsCacheGet(legacyKey);
+  if(legacy instanceof Blob&&legacy.size){await naturalTtsCachePut(identity.cacheKey,legacy);return {identity,blob:legacy};}
+  return {identity};
+}
+function naturalTtsBatchStatusText(){
+  if(!naturalTtsBatch)return "";
+  if(naturalTtsBatch.scanning)return "正在检查缺失语音…";
+  const counts=`已生成 ${naturalTtsBatch.generated}，已跳过 ${naturalTtsBatch.skipped}，失败 ${naturalTtsBatch.failed}`;
+  return naturalTtsBatch.running?`正在生成 ${naturalTtsBatch.processed} / ${naturalTtsBatch.total}；${counts}`:`生成完成：${counts}`;
+}
+function refreshNaturalTtsBatchStatus(){
+  const button=document.querySelector("[data-natural-tts-batch]"),status=document.querySelector("[data-natural-tts-status]");
+  if(button)button.disabled=Boolean(naturalTtsBatch?.running);if(status)status.textContent=naturalTtsBatchStatusText();
+}
+function naturalTtsRequestChunks(clips){
+  const chunks=[];let current=[],length=0;
+  clips.forEach(clip=>{if(current.length&&(current.length>=12||length+clip.text.length>3500)){chunks.push(current);current=[];length=0;}current.push(clip);length+=clip.text.length;});
+  if(current.length)chunks.push(current);return chunks;
+}
+async function generateMissingShadowingAudio(){
+  if(naturalTtsBatch?.running)return;
+  if(!("indexedDB" in window)||!crypto?.subtle)return toast("当前浏览器不支持语音缓存");
+  const endpoint=window.JAPANESE_RESET_TTS_ENDPOINT;if(!endpoint)return toast("自然语音服务尚未配置");
+  naturalTtsBatch={running:true,scanning:true,total:0,processed:0,generated:0,skipped:0,failed:0};refreshNaturalTtsBatchStatus();
+  const jobs=[];
   try{
-    if(await naturalTtsIsComplete(passage.sentences.length)){refreshNaturalTtsButton();return toast("自然语音已经生成");}
-    const endpoint=window.JAPANESE_RESET_TTS_ENDPOINT;if(!endpoint)throw new Error("自然语音服务尚未配置");
-    naturalTtsBusy=true;refreshNaturalTtsButton();
-    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passageId:NATURAL_TTS_PASSAGE_ID})});
-    const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||"生成失败");
-    if(result.version!==NATURAL_TTS_CACHE_VERSION||!result.full||!Array.isArray(result.sentences)||result.sentences.length!==passage.sentences.length)throw new Error("语音数据不完整");
-    const mimeType=result.mimeType||"audio/mpeg";
-    await naturalTtsCachePut(naturalTtsCacheKey("full"),base64AudioBlob(result.full,mimeType));
-    await Promise.all(result.sentences.map((audio,index)=>naturalTtsCachePut(naturalTtsCacheKey("sentence",index),base64AudioBlob(audio,mimeType))));
-    toast("自然语音已生成");
-  }catch(error){toast(error.message||"自然语音生成失败");}
-  finally{naturalTtsBusy=false;refreshNaturalTtsButton();}
+    for(const passage of availableShadowingItems()){
+      const candidates=[{kind:"full",text:passage.passage},...passage.sentences.map(sentence=>({kind:"sentence",text:sentence.japanese}))],unique=new Map();
+      for(const candidate of candidates){const found=await naturalTtsGetClip(passage.id,candidate.kind,candidate.text);unique.set(found.identity.cacheKey,found);}
+      const clips=[...unique.values()];naturalTtsBatch.total+=clips.length;
+      const missing=clips.filter(clip=>!clip.blob).map(clip=>clip.identity);naturalTtsBatch.skipped+=clips.length-missing.length;jobs.push({passageId:passage.id,missing});
+    }
+    naturalTtsBatch.scanning=false;naturalTtsBatch.processed=naturalTtsBatch.skipped;refreshNaturalTtsBatchStatus();
+    for(const job of jobs){
+      for(const clips of naturalTtsRequestChunks(job.missing)){
+        try{
+          const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passageId:job.passageId,clips:clips.map(({clipId,kind,text})=>({clipId,kind,text}))})});
+          const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||"生成失败");
+          if(result.version!==NATURAL_TTS_CACHE_VERSION||!Array.isArray(result.clips))throw new Error("语音数据不完整");
+          const returned=new Map(result.clips.map(clip=>[clip.clipId,clip])),mimeType=result.mimeType||"audio/mpeg";
+          for(const clip of clips){
+            const generated=returned.get(clip.clipId);
+            try{if(!generated?.audio)throw new Error(generated?.error||"生成失败");await naturalTtsCachePut(clip.cacheKey,base64AudioBlob(generated.audio,mimeType));naturalTtsBatch.generated++;}
+            catch{naturalTtsBatch.failed++;}
+            naturalTtsBatch.processed++;refreshNaturalTtsBatchStatus();
+          }
+        }catch{naturalTtsBatch.failed+=clips.length;naturalTtsBatch.processed+=clips.length;refreshNaturalTtsBatchStatus();}
+      }
+    }
+  }catch{naturalTtsBatch.failed+=Math.max(0,naturalTtsBatch.total-naturalTtsBatch.processed);naturalTtsBatch.processed=naturalTtsBatch.total;}
+  finally{naturalTtsBatch.running=false;naturalTtsBatch.scanning=false;refreshNaturalTtsBatchStatus();}
 }
-async function playNaturalShadowingAudio(kind,index){
+async function playNaturalShadowingAudio(passageId,kind,text){
   try{
-    const blob=await naturalTtsCacheGet(naturalTtsCacheKey(kind,index));if(!(blob instanceof Blob)||!blob.size)return toast("请先生成自然语音");
-    if("speechSynthesis" in window)speechSynthesis.cancel();
+    const {blob}=await naturalTtsGetClip(passageId,kind,text);if(!(blob instanceof Blob)||!blob.size)return toast("自然语音尚未生成，请在管理内容中生成缺失语音");
     const url=URL.createObjectURL(blob),audio=new Audio(url);audio.onended=audio.onerror=()=>URL.revokeObjectURL(url);await audio.play();
   }catch{return toast("自然语音播放失败");}
+}
+function playNaturalShadowingAudioByPosition(passageId,kind,index){
+  const passage=allShadowingItems().find(item=>item.id===passageId),text=kind==="full"?passage?.passage:passage?.sentences[index]?.japanese;
+  if(!text)return toast("找不到这段跟读内容");return playNaturalShadowingAudio(passageId,kind,text);
 }
 function renderShadowingReconstruction(passage){
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
@@ -673,6 +713,7 @@ function openShadowingManager(){
     <div class="modal-handle"></div><div class="modal-head"><h2>管理跟读内容</h2><button class="close-btn" onclick="closeModal()">×</button></div>
     <p class="modal-copy">新增和修改只保存在当前浏览器。内置内容可以编辑或隐藏，自己导入的内容也可以删除。</p>
     <div class="manager-actions"><button class="primary" onclick="openShadowingImporter()">导入 JSON</button><button class="secondary" onclick="exportShadowingContent()">导出全部备份</button></div>
+    <div class="manager-audio-actions"><button class="secondary" data-natural-tts-batch onclick="generateMissingShadowingAudio()" ${naturalTtsBatch?.running?"disabled":""}>生成缺失语音</button><small data-natural-tts-status>${esc(naturalTtsBatchStatusText())}</small></div>
     <div class="shadowing-manager-list">${allShadowingItems().map(item=>`<article class="${hidden.has(item.id)?"hidden-item":""}"><div><b>${esc(item.title)}</b><small>${esc(item.category)} · ${custom.has(item.id)?"自己导入":"内置"}${hidden.has(item.id)?" · 已隐藏":""}</small></div><div><button class="mini-btn" onclick="openShadowingEditor('${item.id}')">编辑</button><button class="mini-btn" onclick="toggleShadowingHidden('${item.id}')">${hidden.has(item.id)?"显示":"隐藏"}</button>${custom.has(item.id)?`<button class="mini-btn danger" onclick="deleteShadowingItem('${item.id}')">删除</button>`:""}</div></article>`).join("")}</div>
   </section></div>`;
 }
