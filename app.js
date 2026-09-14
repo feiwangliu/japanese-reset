@@ -145,6 +145,11 @@ const NATURAL_TTS_CACHE_VERSION="gemini-3.1-flash-tts-preview:Achernar:v1";
 const LEGACY_NATURAL_TTS_PASSAGE_ID="real-breakfast";
 const LEGACY_NATURAL_TTS_HASHES={full:"02db812a06ccca7688b407f33f649c558baaf64b1903fa759c74c86a63080c97",sentences:["a9227cc1220c188172d7afc708102669dce2778f6ee49afdd1ef6c7d4de4f35c","8fdbdf2a8bb4d4c0e82b40bc1ce5deee131e9d27dc1717dfe1f07cf4b99ce419","757d59dc02e6f31affccf2ab7870fb0554d1e61524b19b5e4e5ddb87b03eeb6b","f2475b244505a7a918c19404711e1875b054fd3a84564266f9e3e7aabd0308ca"]};
 let naturalTtsBatch=null;
+const PRONUNCIATION_JUDGE_ENDPOINT="https://japanese-reset-pronunciation-842886308739.asia-northeast1.run.app";
+const PRONUNCIATION_TRANSCRIPTION_REFERENCE="子どもは朝ごはんをあまり食べません。";
+const MASTERY_SAMPLE_RATE=16000;
+const MASTERY_MAX_RECORDING_MS=30000;
+let shadowingMasteryRecording=null;
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -521,11 +526,12 @@ function currentShadowing(){
   if(shadowingIndex>=items.length)shadowingIndex=0;
   return items[shadowingIndex];
 }
-function resetShadowingStep(){shadowingPhase="read";shadowingExpressionSelection=new Set();}
+function resetShadowingStep(){stopShadowingMasteryRecording();shadowingPhase="read";shadowingExpressionSelection=new Set();}
 function renderShadowing(){
   const passage=currentShadowing(),progress=state.shadowingProgress?.[passage.id],familiar=Boolean(progress?.familiar);
   if(shadowingPhase==="reconstruct")return renderShadowingReconstruction(passage);
   if(shadowingPhase==="expressions")return renderShadowingExpressions(passage);
+  if(shadowingPhase==="mastery")return renderShadowingMastery(passage);
   document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
     <div class="section-head speaking-top"><div><h1 class="page-title">今日跟读</h1><p class="page-subtitle">先听懂，再跟读。这里不测试，也不评分。</p></div><div class="shadowing-tools"><button class="text-btn" onclick="openShadowingManager()">管理内容</button><span class="daily-count">${shadowingIndex+1}/${availableShadowingItems().length}</span></div></div>
     ${speakingModeTabs("shadowing")}
@@ -537,6 +543,7 @@ function renderShadowing(){
     </section>
     <section class="shadowing-sentences">${passage.sentences.map((sentence,index)=>`<article><span>${index+1}</span><div><b>${jp(sentence.japanese)}</b><small>${esc(sentence.chinese)}</small></div><button class="mini-btn" onclick="playNaturalShadowingAudioByPosition('${passage.id}','sentence',${index})">听这句</button></article>`).join("")}</section>
     <button class="primary full shadowing-complete" onclick="completeShadowing()">我已经跟读一遍</button>
+    ${familiar?`<button class="secondary full shadowing-mastery-entry" onclick="startShadowingMastery()">熟练掌握</button>`:""}
     <div class="speaking-nav"><button class="secondary" onclick="moveShadowing(-1)">上一篇</button><button class="secondary" onclick="moveShadowing(1)">下一篇</button></div>
   </main>`;
 }
@@ -660,9 +667,83 @@ function renderShadowingExpressions(passage){
       }).join("")}</div>
     </section>
     <button class="primary full shadowing-complete" onclick="addSelectedShadowingExpressions()">把选中的加入训练</button>
+    <button class="secondary full shadowing-mastery-entry" onclick="startShadowingMastery()">熟练掌握</button>
     <button class="secondary full shadowing-back" onclick="resetShadowingStep();renderShadowing()">暂时不添加</button>
   </main>`;
 }
+function renderShadowingMastery(passage){
+  document.getElementById("app").innerHTML=`<main class="page speaking-page shadowing-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">熟练掌握</h1><p class="page-subtitle">确认这段真实生活表达已经能自己组织。</p></div><span class="daily-count">${shadowingIndex+1}/${availableShadowingItems().length}</span></div>
+    ${speakingModeTabs("shadowing")}
+    <section class="card shadowing-card mastery-card"><div class="speaking-meta"><span>自由表达</span><b>约20至30秒</b></div><h2>${esc(passage.title)}</h2>
+      <p class="reconstruction-note">看中文意思，用自己的日语把这段话说出来。不需要背原句，说法不同完全没关系。</p>
+      <ol class="meaning-cues">${passage.meaningCues.slice(0,5).map(cue=>`<li>${esc(cue)}</li>`).join("")}</ol>
+      <div class="mastery-recorder"><button id="mastery-record-btn" class="primary full" onclick="toggleShadowingMasteryRecording()">开始录音</button><p id="mastery-status" role="status">准备好了</p></div>
+      <section id="mastery-result" class="mastery-result" hidden></section>
+    </section>
+    <button class="secondary full shadowing-back" onclick="resetShadowingStep();renderShadowing()">返回跟读内容</button>
+  </main>`;
+}
+function startShadowingMastery(){shadowingPhase="mastery";renderShadowing();}
+function setShadowingMasteryStatus(message){const element=document.getElementById("mastery-status");if(element)element.textContent=message;}
+function setShadowingMasteryBusy(busy){const button=document.getElementById("mastery-record-btn");if(button)button.disabled=busy;}
+function stopShadowingMasteryRecording(){
+  const recording=shadowingMasteryRecording;if(!recording)return null;shadowingMasteryRecording=null;clearTimeout(recording.timer);
+  recording.stream.getTracks().forEach(track=>track.stop());recording.source.disconnect();recording.processor.disconnect();recording.context.close();
+  return recording;
+}
+function resampleMasteryAudio(chunks,inputRate){
+  const input=new Float32Array(chunks.reduce((sum,chunk)=>sum+chunk.length,0));let offset=0;
+  chunks.forEach(chunk=>{input.set(chunk,offset);offset+=chunk.length;});
+  const outputLength=Math.max(1,Math.floor(input.length*MASTERY_SAMPLE_RATE/inputRate)),output=new Float32Array(outputLength);
+  for(let i=0;i<outputLength;i++){const position=i*inputRate/MASTERY_SAMPLE_RATE,left=Math.floor(position),right=Math.min(left+1,input.length-1),fraction=position-left;output[i]=input[left]*(1-fraction)+input[right]*fraction;}
+  return output;
+}
+function encodeMasteryWav(samples){
+  const buffer=new ArrayBuffer(44+samples.length*2),view=new DataView(buffer),writeString=(offset,value)=>[...value].forEach((char,index)=>view.setUint8(offset+index,char.charCodeAt(0)));
+  writeString(0,"RIFF");view.setUint32(4,36+samples.length*2,true);writeString(8,"WAVE");writeString(12,"fmt ");view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,MASTERY_SAMPLE_RATE,true);view.setUint32(28,MASTERY_SAMPLE_RATE*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);writeString(36,"data");view.setUint32(40,samples.length*2,true);
+  samples.forEach((sample,index)=>{const value=Math.max(-1,Math.min(1,sample));view.setInt16(44+index*2,value<0?value*0x8000:value*0x7fff,true);});
+  return new Blob([buffer],{type:"audio/wav"});
+}
+function masteryBlobToBase64(blob){
+  return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);reader.onerror=reject;reader.readAsDataURL(blob);});
+}
+async function startShadowingMasteryRecording(){
+  if(!navigator.mediaDevices?.getUserMedia||!window.AudioContext)return setShadowingMasteryStatus("当前浏览器不支持录音");
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}}),context=new AudioContext(),source=context.createMediaStreamSource(stream),processor=context.createScriptProcessor(4096,1,1),chunks=[];
+    processor.onaudioprocess=event=>{if(shadowingMasteryRecording)chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));};source.connect(processor);processor.connect(context.destination);
+    shadowingMasteryRecording={stream,context,source,processor,chunks,inputRate:context.sampleRate,timer:setTimeout(finishShadowingMasteryRecording,MASTERY_MAX_RECORDING_MS)};
+    const button=document.getElementById("mastery-record-btn");if(button)button.textContent="停止录音";setShadowingMasteryStatus("正在录音…");
+  }catch(error){setShadowingMasteryStatus(error?.name==="NotAllowedError"?"需要允许麦克风权限":"无法开始录音");}
+}
+async function finishShadowingMasteryRecording(){
+  const recording=stopShadowingMasteryRecording();if(!recording)return;
+  const button=document.getElementById("mastery-record-btn");if(button){button.textContent="开始录音";button.disabled=true;}
+  try{
+    if(!recording.chunks.length)throw new Error("没有录到声音，请再录一次");
+    const wav=encodeMasteryWav(resampleMasteryAudio(recording.chunks,recording.inputRate)),audioBase64=await masteryBlobToBase64(wav);
+    setShadowingMasteryStatus("识别中…");
+    const recognitionResponse=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({referenceText:PRONUNCIATION_TRANSCRIPTION_REFERENCE,audioBase64})}),recognition=await recognitionResponse.json().catch(()=>({}));
+    if(!recognitionResponse.ok)throw new Error(recognition.error||"识别失败，请再录一次");
+    setShadowingMasteryStatus("识别完成，AI 判断中…");
+    const passage=currentShadowing(),recognizedText=recognition.recognizedText||"",judgeResponse=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"judge",recognizedText,chineseTarget:passage.meaningCues.join("；")})}),judgeBody=await judgeResponse.json().catch(()=>({}));
+    if(!judgeResponse.ok)throw new Error(judgeBody.error||"AI 判断失败，请再录一次");
+    renderShadowingMasteryResult(recognizedText,judgeBody.judgment||{});setShadowingMasteryStatus("判断完成");
+  }catch(error){setShadowingMasteryStatus(error.message||"评测失败，请再录一次");}
+  finally{setShadowingMasteryBusy(false);}
+}
+function renderShadowingMasteryResult(recognizedText,judgment){
+  const allowedResults=new Set(["会了","基本会了，再修一下","再练一下","这次先重录"]),allowedMarks=new Set(["✓","△","×","?"]),result=allowedResults.has(judgment.result)?judgment.result:"这次先重录",meaning=allowedMarks.has(judgment.meaning)?judgment.meaning:"?",naturalness=allowedMarks.has(judgment.naturalness)?judgment.naturalness:"?",reliability=judgment.recognitionReliability==="高"?"高":"存疑",element=document.getElementById("mastery-result");
+  if(!element)return;
+  element.innerHTML=`<h3>${esc(result)}</h3><div class="mastery-meta"><span>意思 <b>${esc(meaning)}</b></span><span>日语 <b>${esc(naturalness)}</b></span><span>识别 <b>${esc(reliability)}</b></span></div><div class="mastery-detail"><small>Azure 听到的日语</small><p lang="ja">${esc(recognizedText||"未识别到文本")}</p></div>${judgment.correction?`<div class="mastery-detail"><small>需要修改</small><p>${esc(judgment.correction)}</p></div>`:""}${judgment.naturalVersion?`<div class="mastery-detail"><small>自然参考</small><p lang="ja">${esc(judgment.naturalVersion)}</p><em>只是参考，不需要照着背。</em></div>`:""}<button class="secondary full" onclick="resetShadowingMasteryAssessment()">再录一次</button>`;
+  element.hidden=false;
+  if(result==="会了"){
+    const passage=currentShadowing(),previous=state.shadowingProgress?.[passage.id]||{};state.shadowingProgress=state.shadowingProgress||{};state.shadowingProgress[passage.id]={...previous,mastered:true,masteredAt:new Date().toISOString()};persist();
+  }
+}
+function resetShadowingMasteryAssessment(){const result=document.getElementById("mastery-result");if(result){result.hidden=true;result.innerHTML="";}setShadowingMasteryStatus("准备好了");const button=document.getElementById("mastery-record-btn");if(button){button.textContent="开始录音";button.disabled=false;}}
+function toggleShadowingMasteryRecording(){return shadowingMasteryRecording?finishShadowingMasteryRecording():startShadowingMasteryRecording();}
 function moveShadowing(step){const items=availableShadowingItems();shadowingIndex=(shadowingIndex+step+items.length)%items.length;resetShadowingStep();renderShadowing();}
 function completeShadowing(){
   shadowingPhase="reconstruct";renderShadowing();
