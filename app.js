@@ -138,6 +138,52 @@ let recordingChunks = [];
 let playbackUrl = "";
 let handLearningQueue = [];
 let handLearningIndex = 0;
+let dailySpeakingFreeIndex = 0;
+let dailySpeakingFreeAnswer = "";
+let dailySpeakingFreeJudgment = null;
+let dailySpeakingFreeLoading = false;
+const DAILY_SPEAKING_PROMPTS=[
+  "你不用特意过来，我自己过去就行。",
+  "我本来没打算买，结果看到实物以后还是买了。",
+  "你先放这里吧，我等一下再收拾。",
+  "我刚好要去便利店，就顺便帮你买了。",
+  "我本来想早点睡，结果刷手机刷到一点多。",
+  "你不用等我，到了以后先进去吧。",
+  "我刚才顺手把你的东西也一起拿过来了。",
+  "我还以为今天会下雨，结果天气还挺好的。",
+  "他最近不知道为什么特别不愿意早起。",
+  "我已经跟他说好几次了，他还是会忘。",
+  "这个我还没决定，等我想好了再告诉你。",
+  "我本来只是想看一下，没想到最后买了两个。",
+  "你先吃吧，不用特意等我。",
+  "我今天出门有点晚，差一点就迟到了。",
+  "这个放冰箱就行，晚上我再弄。",
+  "我最近一到晚上就特别想吃东西。",
+  "我明明记得放在这里了，怎么找不到了？",
+  "他刚才还说不想去，现在又突然想去了。",
+  "我本来以为很麻烦，实际做了以后发现还好。",
+  "反正我也要过去，就一起去吧。",
+  "你到了以后跟我说一声，我下去接你。",
+  "我差不多准备好了，再给我五分钟。",
+  "今天有点累，我不太想做饭，随便吃点就行。",
+  "我忘了提前预约，只能改天再去了。",
+  "这个看起来很好看，但是穿上以后感觉有点不一样。",
+  "我最近一直想买这个，但又觉得好像没必要。",
+  "他只要一开始玩游戏，就完全听不到我说话。",
+  "我本来想自己解决，后来发现还是得问一下。",
+  "你不用马上回复我，有空的时候再看就行。",
+  "我也不是不喜欢，就是觉得没必要特意去。",
+  "我刚准备出门，他突然说他不想去了。",
+  "早知道这么冷，我就多穿一点了。",
+  "我本来以为他会不高兴，结果他完全没在意。",
+  "这个先别扔，我还不知道要不要用。",
+  "我每次都想着早点出门，最后还是会拖到最后一刻。",
+  "我刚才经过那家店的时候，发现今天居然没什么人。",
+  "我也说不上来哪里不对，就是觉得有点奇怪。",
+  "你要是不急的话，我明天顺便带给你。",
+  "我本来已经不想买了，结果看到打折又有点心动。",
+  "这件事我还没跟他说，等确定以后再说吧。"
+];
 let shadowingIndex = -1;
 let shadowingPhase = "read";
 let shadowingExpressionSelection = new Set();
@@ -250,7 +296,7 @@ function go(tab) {
 function startDailyTraining(){speakingMode="daily";go("speaking")}
 function startDailyShadowing(){speakingMode="shadowing";resetShadowingStep();go("speaking")}
 function speakingModeTabs(active){
-  return `<div class="speaking-mode-tabs"><button class="${active==="daily"?"active":""}" onclick="setSpeakingMode('daily')">今日安排</button><button class="${active==="shadowing"?"active":""}" onclick="setSpeakingMode('shadowing')">跟读</button><button class="${active==="scene"?"active":""}" onclick="setSpeakingMode('scene')">场景</button><button class="${active==="reflex"?"active":""}" onclick="setSpeakingMode('reflex')">反射</button></div>`;
+  return `<div class="speaking-mode-tabs"><button class="${active==="daily"?"active":""}" onclick="setSpeakingMode('daily')">今日安排</button><button class="${active==="free"?"active":""}" onclick="setSpeakingMode('free')">日常口语</button><button class="${active==="shadowing"?"active":""}" onclick="setSpeakingMode('shadowing')">跟读</button><button class="${active==="scene"?"active":""}" onclick="setSpeakingMode('scene')">场景</button><button class="${active==="reflex"?"active":""}" onclick="setSpeakingMode('reflex')">反射</button></div>`;
 }
 
 function dailySpeakingItems() {
@@ -442,6 +488,7 @@ function rateDaily(rating){
 
 function renderSpeaking() {
   if(speakingMode==="daily") return renderDaily();
+  if(speakingMode==="free") return renderDailySpeakingFree();
   if(speakingMode==="shadowing") return renderShadowing();
   if(speakingMode==="reflex") return renderReflex();
   state.speakingRatings = state.speakingRatings || {};
@@ -474,6 +521,53 @@ function renderSpeaking() {
     </section>
     <div class="speaking-nav"><button class="secondary" onclick="moveSpeaking(-1)">上一题</button><button class="primary" onclick="moveSpeaking(1)">下一题</button></div>
   </main>`;
+}
+
+function dailySpeakingFreeResult(result){
+  if(result==="会了")return {level:"good",label:"✅ 会了"};
+  if(result==="基本会了，再修一下")return {level:"almost",label:"△ 基本会了，再修一下"};
+  return {level:"retry",label:"❌ 再练一下"};
+}
+function renderDailySpeakingFree(){
+  if(dailySpeakingFreeIndex>=DAILY_SPEAKING_PROMPTS.length){
+    document.getElementById("app").innerHTML=`<main class="page speaking-page">
+      <div class="section-head speaking-top"><div><h1 class="page-title">Daily Speaking</h1><p class="page-subtitle">Free Practice</p></div><span class="daily-count">40 / 40</span></div>
+      ${speakingModeTabs("free")}
+      <section class="card speaking-card daily-speaking-free-card"><span class="tiny-label">COMPLETE</span><h2>40 题完成</h2><p>这一轮日常口语自由输出已经结束。</p></section>
+    </main>`;return;
+  }
+  const prompt=DAILY_SPEAKING_PROMPTS[dailySpeakingFreeIndex],result=dailySpeakingFreeJudgment?dailySpeakingFreeResult(dailySpeakingFreeJudgment.result):null;
+  document.getElementById("app").innerHTML=`<main class="page speaking-page">
+    <div class="section-head speaking-top"><div><h1 class="page-title">Daily Speaking</h1><p class="page-subtitle">Free Practice</p></div><span class="daily-count">${dailySpeakingFreeIndex+1} / ${DAILY_SPEAKING_PROMPTS.length}</span></div>
+    ${speakingModeTabs("free")}
+    <div class="daily-progress"><i style="width:${Math.round(dailySpeakingFreeIndex/DAILY_SPEAKING_PROMPTS.length*100)}%"></i></div>
+    <section class="card speaking-card daily-speaking-free-card">
+      <div class="speaking-meta"><span>中文原句</span><b>${dailySpeakingFreeIndex+1} / ${DAILY_SPEAKING_PROMPTS.length}</b></div>
+      <h2>${esc(prompt)}</h2>
+      ${dailySpeakingFreeJudgment?`<div class="daily-speaking-feedback ${result.level}"><h3>${result.label}</h3><div><small>中文原句</small><p>${esc(prompt)}</p></div><div><small>自然日语</small><p lang="ja">${esc(dailySpeakingFreeJudgment.naturalVersion||dailySpeakingFreeAnswer)}</p></div><div><small>我的句子</small><p lang="ja">${esc(dailySpeakingFreeAnswer)}</p></div><div><small>为什么</small><p>${esc(dailySpeakingFreeJudgment.correction||"自然地表达了原意。")}</p></div></div><button class="primary full" onclick="nextDailySpeakingFree()">下一题</button>`:`<label class="daily-speaking-input-label" for="daily-speaking-input">用日语写出你会在现实中说的话</label><textarea id="daily-speaking-input" class="daily-speaking-input" lang="ja" placeholder="ここに日本語を入力…">${esc(dailySpeakingFreeAnswer)}</textarea><div id="daily-speaking-status" class="daily-speaking-status" aria-live="polite"></div><button id="daily-speaking-check" class="primary full" onclick="checkDailySpeakingFree()" ${dailySpeakingFreeLoading?"disabled":""}>${dailySpeakingFreeLoading?"判断中…":"Check"}</button>`}
+    </section>
+  </main>`;
+}
+async function checkDailySpeakingFree(){
+  if(dailySpeakingFreeLoading||dailySpeakingFreeJudgment)return;
+  const input=document.getElementById("daily-speaking-input"),button=document.getElementById("daily-speaking-check"),status=document.getElementById("daily-speaking-status"),userJapanese=input?.value.trim()||"";
+  if(!userJapanese){if(status)status.textContent="请先输入日语。";input?.focus();return;}
+  dailySpeakingFreeAnswer=userJapanese;dailySpeakingFreeLoading=true;
+  if(button){button.disabled=true;button.textContent="判断中…";}if(status)status.textContent="AI 判断中…";
+  try{
+    const chinesePrompt=DAILY_SPEAKING_PROMPTS[dailySpeakingFreeIndex],response=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"judge",recognizedText:userJapanese,chineseTarget:chinesePrompt})}),body=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(body.error||"判断失败，请再试一次。");
+    const judgment=body.judgment||{};
+    if(!["会了","基本会了，再修一下","再练一下","这次先重录"].includes(judgment.result))throw new Error("判断结果格式不正确，请再试一次。");
+    dailySpeakingFreeJudgment={result:judgment.result,correction:typeof judgment.correction==="string"?judgment.correction:"",naturalVersion:typeof judgment.naturalVersion==="string"?judgment.naturalVersion:""};
+    renderDailySpeakingFree();
+  }catch(error){
+    dailySpeakingFreeLoading=false;if(button){button.disabled=false;button.textContent="Check";}if(status)status.textContent=error.message||"判断失败，请再试一次。";
+  }
+}
+function nextDailySpeakingFree(){
+  if(!dailySpeakingFreeJudgment)return;
+  dailySpeakingFreeIndex+=1;dailySpeakingFreeAnswer="";dailySpeakingFreeJudgment=null;dailySpeakingFreeLoading=false;renderDailySpeakingFree();
 }
 
 function renderReflex(){
@@ -732,7 +826,6 @@ function resampleMasteryAudio(chunks,inputRate){
   }
 
   return output;
-}
 }
 function encodeMasteryWav(samples){
   const buffer=new ArrayBuffer(44+samples.length*2),view=new DataView(buffer),writeString=(offset,value)=>[...value].forEach((char,index)=>view.setUint8(offset+index,char.charCodeAt(0)));
