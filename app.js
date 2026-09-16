@@ -692,11 +692,47 @@ function stopShadowingMasteryRecording(){
   return recording.ready?recording:null;
 }
 function resampleMasteryAudio(chunks,inputRate){
-  const input=new Float32Array(chunks.reduce((sum,chunk)=>sum+chunk.length,0));let offset=0;
-  chunks.forEach(chunk=>{input.set(chunk,offset);offset+=chunk.length;});
-  const outputLength=Math.max(1,Math.floor(input.length*MASTERY_SAMPLE_RATE/inputRate)),output=new Float32Array(outputLength);
-  for(let i=0;i<outputLength;i++){const position=i*inputRate/MASTERY_SAMPLE_RATE,left=Math.floor(position),right=Math.min(left+1,input.length-1),fraction=position-left;output[i]=input[left]*(1-fraction)+input[right]*fraction;}
+  const inputLength=chunks.reduce((sum,chunk)=>sum+chunk.length,0);
+  const input=new Float32Array(inputLength);
+  let offset=0;
+
+  chunks.forEach(chunk=>{
+    input.set(chunk,offset);
+    offset+=chunk.length;
+  });
+
+  if(inputRate===MASTERY_SAMPLE_RATE)return input;
+
+  const ratio=inputRate/MASTERY_SAMPLE_RATE;
+  const outputLength=Math.max(1,Math.floor(input.length/ratio));
+  const output=new Float32Array(outputLength);
+
+  for(let i=0;i<outputLength;i++){
+    const start=i*ratio;
+    const end=Math.min((i+1)*ratio,input.length);
+
+    const first=Math.floor(start);
+    const last=Math.ceil(end);
+
+    let sum=0;
+    let weightSum=0;
+
+    for(let j=first;j<last;j++){
+      if(j<0||j>=input.length)continue;
+
+      const sampleStart=Math.max(start,j);
+      const sampleEnd=Math.min(end,j+1);
+      const weight=Math.max(0,sampleEnd-sampleStart);
+
+      sum+=input[j]*weight;
+      weightSum+=weight;
+    }
+
+    output[i]=weightSum>0?sum/weightSum:0;
+  }
+
   return output;
+}
 }
 function encodeMasteryWav(samples){
   const buffer=new ArrayBuffer(44+samples.length*2),view=new DataView(buffer),writeString=(offset,value)=>[...value].forEach((char,index)=>view.setUint8(offset+index,char.charCodeAt(0)));
