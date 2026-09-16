@@ -146,7 +146,6 @@ const LEGACY_NATURAL_TTS_PASSAGE_ID="real-breakfast";
 const LEGACY_NATURAL_TTS_HASHES={full:"02db812a06ccca7688b407f33f649c558baaf64b1903fa759c74c86a63080c97",sentences:["a9227cc1220c188172d7afc708102669dce2778f6ee49afdd1ef6c7d4de4f35c","8fdbdf2a8bb4d4c0e82b40bc1ce5deee131e9d27dc1717dfe1f07cf4b99ce419","757d59dc02e6f31affccf2ab7870fb0554d1e61524b19b5e4e5ddb87b03eeb6b","f2475b244505a7a918c19404711e1875b054fd3a84564266f9e3e7aabd0308ca"]};
 let naturalTtsBatch=null;
 const PRONUNCIATION_JUDGE_ENDPOINT="https://japanese-reset-pronunciation-842886308739.asia-northeast1.run.app";
-const PRONUNCIATION_TRANSCRIPTION_REFERENCE="子どもは朝ごはんをあまり食べません。";
 const MASTERY_SAMPLE_RATE=16000;
 const MASTERY_MAX_RECORDING_MS=30000;
 let shadowingMasteryRecording=null;
@@ -688,9 +687,9 @@ function startShadowingMastery(){shadowingPhase="mastery";renderShadowing();}
 function setShadowingMasteryStatus(message){const element=document.getElementById("mastery-status");if(element)element.textContent=message;}
 function setShadowingMasteryBusy(busy){const button=document.getElementById("mastery-record-btn");if(button)button.disabled=busy;}
 function stopShadowingMasteryRecording(){
-  const recording=shadowingMasteryRecording;if(!recording)return null;shadowingMasteryRecording=null;clearTimeout(recording.timer);
-  recording.stream.getTracks().forEach(track=>track.stop());recording.source.disconnect();recording.processor.disconnect();recording.context.close();
-  return recording;
+  const recording=shadowingMasteryRecording;if(!recording||recording.stopped)return null;
+  recording.stop();shadowingMasteryRecording=null;
+  return recording.ready?recording:null;
 }
 function resampleMasteryAudio(chunks,inputRate){
   const input=new Float32Array(chunks.reduce((sum,chunk)=>sum+chunk.length,0));let offset=0;
@@ -709,13 +708,36 @@ function masteryBlobToBase64(blob){
   return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);reader.onerror=reject;reader.readAsDataURL(blob);});
 }
 async function startShadowingMasteryRecording(){
+  if(shadowingMasteryRecording)return;
   if(!navigator.mediaDevices?.getUserMedia||!window.AudioContext)return setShadowingMasteryStatus("当前浏览器不支持录音");
+  const recording={stopped:false,ready:false,chunks:[],passage:currentShadowing(),timer:null,stream:null,context:null,source:null,processor:null};
+  recording.stop=()=>{
+    if(recording.stopped)return;
+    recording.stopped=true;clearTimeout(recording.timer);
+    if(recording.processor){recording.processor.onaudioprocess=null;recording.processor.disconnect();}
+    if(recording.source)recording.source.disconnect();
+    if(recording.stream)recording.stream.getTracks().forEach(track=>track.stop());
+    if(recording.context)recording.context.close().catch(()=>{});
+  };
+  shadowingMasteryRecording=recording;setShadowingMasteryBusy(true);
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}}),context=new AudioContext(),source=context.createMediaStreamSource(stream),processor=context.createScriptProcessor(4096,1,1),chunks=[];
-    processor.onaudioprocess=event=>{if(shadowingMasteryRecording)chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));};source.connect(processor);processor.connect(context.destination);
-    shadowingMasteryRecording={stream,context,source,processor,chunks,inputRate:context.sampleRate,timer:setTimeout(finishShadowingMasteryRecording,MASTERY_MAX_RECORDING_MS)};
-    const button=document.getElementById("mastery-record-btn");if(button)button.textContent="停止录音";setShadowingMasteryStatus("正在录音…");
-  }catch(error){setShadowingMasteryStatus(error?.name==="NotAllowedError"?"需要允许麦克风权限":"无法开始录音");}
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}});
+    if(recording.stopped){stream.getTracks().forEach(track=>track.stop());return;}
+    recording.stream=stream;
+    const context=recording.context=new AudioContext();
+    const source=recording.source=context.createMediaStreamSource(stream),processor=recording.processor=context.createScriptProcessor(4096,1,1);
+    recording.inputRate=context.sampleRate;
+    processor.onaudioprocess=event=>{if(!recording.stopped)recording.chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));};
+    source.connect(processor);processor.connect(context.destination);
+    if(context.state==="suspended")await context.resume();
+    if(recording.stopped)return;
+    recording.ready=true;
+    recording.timer=setTimeout(()=>{if(shadowingMasteryRecording===recording)finishShadowingMasteryRecording();},MASTERY_MAX_RECORDING_MS);
+    const button=document.getElementById("mastery-record-btn");if(button){button.textContent="停止录音";button.disabled=false;}setShadowingMasteryStatus("正在录音…");
+  }catch(error){
+    recording.stop();
+    if(shadowingMasteryRecording===recording){shadowingMasteryRecording=null;setShadowingMasteryBusy(false);setShadowingMasteryStatus(error?.name==="NotAllowedError"?"需要允许麦克风权限":"无法开始录音");}
+  }
 }
 async function finishShadowingMasteryRecording(){
   const recording=stopShadowingMasteryRecording();if(!recording)return;
@@ -724,10 +746,14 @@ async function finishShadowingMasteryRecording(){
     if(!recording.chunks.length)throw new Error("没有录到声音，请再录一次");
     const wav=encodeMasteryWav(resampleMasteryAudio(recording.chunks,recording.inputRate)),audioBase64=await masteryBlobToBase64(wav);
     setShadowingMasteryStatus("识别中…");
-    const recognitionResponse=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({referenceText:PRONUNCIATION_TRANSCRIPTION_REFERENCE,audioBase64})}),recognition=await recognitionResponse.json().catch(()=>({}));
-    if(!recognitionResponse.ok)throw new Error(recognition.error||"识别失败，请再录一次");
+    const recognitionResponse=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({referenceText:recording.passage.passage,audioBase64})}),recognition=await recognitionResponse.json().catch(()=>({}));
+    if(!recognitionResponse.ok)throw new Error(recognition?.error||"识别失败，请再录一次");
+    const recognizedText=typeof recognition?.recognizedText==="string"?recognition.recognizedText.trim():"";
+    if(!recognizedText){
+      renderShadowingMasteryResult("",{result:"这次先重录",recognitionReliability:"存疑"});setShadowingMasteryStatus("这次先重录");return;
+    }
     setShadowingMasteryStatus("识别完成，AI 判断中…");
-    const passage=currentShadowing(),recognizedText=recognition.recognizedText||"",judgeResponse=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"judge",recognizedText,chineseTarget:passage.meaningCues.join("；")})}),judgeBody=await judgeResponse.json().catch(()=>({}));
+    const passage=recording.passage,judgeResponse=await fetch(PRONUNCIATION_JUDGE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"judge",recognizedText,chineseTarget:passage.meaningCues.join("；")})}),judgeBody=await judgeResponse.json().catch(()=>({}));
     if(!judgeResponse.ok)throw new Error(judgeBody.error||"AI 判断失败，请再录一次");
     renderShadowingMasteryResult(recognizedText,judgeBody.judgment||{});setShadowingMasteryStatus("判断完成");
   }catch(error){setShadowingMasteryStatus(error.message||"评测失败，请再录一次");}
