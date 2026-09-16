@@ -528,7 +528,19 @@ function dailySpeakingFreeResult(result){
   if(result==="基本会了，再修一下")return {level:"almost",label:"△ 基本会了，再修一下"};
   return {level:"retry",label:"❌ 再练一下"};
 }
+function preconnectDailySpeakingJudge(){
+  try{
+    if(document.getElementById("daily-speaking-judge-preconnect"))return;
+    const link=document.createElement("link");
+    link.id="daily-speaking-judge-preconnect";
+    link.rel="preconnect";
+    link.href=new URL(PRONUNCIATION_JUDGE_ENDPOINT).origin;
+    link.crossOrigin="anonymous";
+    document.head.appendChild(link);
+  }catch{}
+}
 function renderDailySpeakingFree(){
+  preconnectDailySpeakingJudge();
   if(dailySpeakingFreeIndex>=DAILY_SPEAKING_PROMPTS.length){
     document.getElementById("app").innerHTML=`<main class="page speaking-page">
       <div class="section-head speaking-top"><div><h1 class="page-title">Daily Speaking</h1><p class="page-subtitle">Free Practice</p></div><span class="daily-count">40 / 40</span></div>
