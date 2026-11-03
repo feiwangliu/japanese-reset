@@ -187,10 +187,11 @@ const DAILY_SPEAKING_PROMPTS=[
 let shadowingIndex = -1;
 let shadowingPhase = "read";
 let shadowingExpressionSelection = new Set();
-const NATURAL_TTS_CACHE_VERSION="gemini-3.1-flash-tts-preview:Achernar:v1";
+const NATURAL_TTS_CACHE_VERSION="gemini-3.8-flash-lite-tts:Achernar:v1";
 const LEGACY_NATURAL_TTS_PASSAGE_ID="real-breakfast";
 const LEGACY_NATURAL_TTS_HASHES={full:"02db812a06ccca7688b407f33f649c558baaf64b1903fa759c74c86a63080c97",sentences:["a9227cc1220c188172d7afc708102669dce2778f6ee49afdd1ef6c7d4de4f35c","8fdbdf2a8bb4d4c0e82b40bc1ce5deee131e9d27dc1717dfe1f07cf4b99ce419","757d59dc02e6f31affccf2ab7870fb0554d1e61524b19b5e4e5ddb87b03eeb6b","f2475b244505a7a918c19404711e1875b054fd3a84564266f9e3e7aabd0308ca"]};
 let naturalTtsBatch=null;
+let naturalTtsPlayer=null;
 const PRONUNCIATION_JUDGE_ENDPOINT="https://japanese-reset-pronunciation-842886308739.asia-northeast1.run.app";
 const MASTERY_SAMPLE_RATE=16000;
 const MASTERY_MAX_RECORDING_MS=30000;
@@ -724,7 +725,7 @@ async function generateMissingShadowingAudio(){
           const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passageId:job.passageId,clips:clips.map(({clipId,kind,text})=>({clipId,kind,text}))})});
           const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||"生成失败");
           if(result.version!==NATURAL_TTS_CACHE_VERSION||!Array.isArray(result.clips))throw new Error("语音数据不完整");
-          const returned=new Map(result.clips.map(clip=>[clip.clipId,clip])),mimeType=result.mimeType||"audio/mpeg";
+          const returned=new Map(result.clips.map(clip=>[clip.clipId,clip])),mimeType=result.mimeType||"audio/wav";
           for(const clip of clips){
             const generated=returned.get(clip.clipId);
             try{if(!generated?.audio)throw new Error(generated?.error||"生成失败");await naturalTtsCachePut(clip.cacheKey,base64AudioBlob(generated.audio,mimeType));naturalTtsBatch.generated++;}
@@ -1503,14 +1504,31 @@ function toggleSaved(type,id) {
   persist(); render();
 }
 function speak(text) {
-  speakAtRate(text,.86);
+  speakAtRate(text,1);
 }
-function speakAtRate(text,rate=.86) {
-  if (!("speechSynthesis" in window)) return toast("当前浏览器不支持朗读");
-  speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text.replace(/（.*?）/g,""));
-  utterance.lang = "ja-JP"; utterance.rate = rate;
-  speechSynthesis.speak(utterance);
+async function speakAtRate(text,rate=1) {
+  const cleanText=String(text||"").replace(/（.*?）/g,"").trim();
+  if(!cleanText)return;
+  if(!("indexedDB" in window)||!crypto?.subtle)return toast("当前浏览器不支持自然语音缓存");
+  const endpoint=window.JAPANESE_RESET_TTS_ENDPOINT;if(!endpoint)return toast("自然语音服务尚未配置");
+  try{
+    const passageId="inline-speech",found=await naturalTtsGetClip(passageId,"sentence",cleanText);
+    let blob=found.blob;
+    if(!(blob instanceof Blob)||!blob.size){
+      const {clipId,kind}=found.identity,response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passageId,clips:[{clipId,kind,text:cleanText}]})});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(result.error||"生成失败");
+      if(result.version!==NATURAL_TTS_CACHE_VERSION||!Array.isArray(result.clips))throw new Error("语音数据不完整");
+      const generated=result.clips.find(clip=>clip.clipId===clipId);
+      if(!generated?.audio)throw new Error(generated?.error||"生成失败");
+      blob=base64AudioBlob(generated.audio,result.mimeType||"audio/wav");
+      await naturalTtsCachePut(found.identity.cacheKey,blob);
+    }
+    if(naturalTtsPlayer){naturalTtsPlayer.pause();if(naturalTtsPlayer.dataset.objectUrl)URL.revokeObjectURL(naturalTtsPlayer.dataset.objectUrl);}
+    const url=URL.createObjectURL(blob),audio=new Audio(url);audio.dataset.objectUrl=url;audio.playbackRate=Math.min(1.25,Math.max(.75,Number(rate)||1));
+    audio.onended=audio.onerror=()=>{URL.revokeObjectURL(url);if(naturalTtsPlayer===audio)naturalTtsPlayer=null;};
+    naturalTtsPlayer=audio;await audio.play();
+  }catch(error){console.error("Natural TTS failed",error);toast("自然语音生成失败，请稍后重试");}
 }
 
 function openImport() {
